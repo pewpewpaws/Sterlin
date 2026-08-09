@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_container"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="6dp">
+
+    <!-- Top: Next class label -->
+    <TextView
+        android:id="@+id/header_title_pill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/widget_pill_dark"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="3dp"
+        android:text="Next"
+        android:textColor="#FFFFFF"
+        android:textSize="9sp"
+        android:textStyle="bold" />
+
+    <!-- Course name (with code) -->
+    <TextView
+        android:id="@+id/item_course"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:text="CS301"
+        android:textColor="@color/widget_text_primary"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <!-- Time -->
+    <TextView
+        android:id="@+id/item_time_period"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:text="9:00 AM"
+        android:textColor="@color/widget_text_secondary"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <!-- Attendance progress ring -->
+    <RelativeLayout
+        android:id="@+id/item_attendance_container"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:layout_marginTop="4dp">
+
+        <ProgressBar
+            android:id="@+id/item_attendance_progress"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:indeterminate="false"
+            android:max="100"
+            android:progressDrawable="@drawable/widget_circular_progress_thick"
+            android:progress="85" />
+
+        <TextView
+            android:id="@+id/item_attendance_pct"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:text="85%"
+            android:textColor="@color/widget_text_primary"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+   </RelativeLayout>
+
+    <!-- Hidden elements required by the RemoteViews service contract -->
+    <TextView
+        android:id="@+id/empty_message"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/empty_sub"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone" />
+
+</LinearLayout>

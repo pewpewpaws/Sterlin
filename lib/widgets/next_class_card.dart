@@ -1,0 +1,229 @@
+import 'package:flutter/material.dart';
+import '../models/dashboard_data.dart';
+
+class NextClassCardWidget extends StatelessWidget {
+  final List<ClassSession> sessions;
+
+  const NextClassCardWidget({
+    super.key,
+    required this.sessions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    final nowWeekday = DateTime.now().weekday;
+    final bool isWeekend = nowWeekday == DateTime.saturday || nowWeekday == DateTime.sunday;
+
+    if (isWeekend || sessions.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Card(
+          color: theme.colorScheme.primaryContainer,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isWeekend ? Icons.weekend_outlined : Icons.event_available_outlined,
+                    size: 24,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isWeekend ? 'WEEKEND / HOLIDAY' : 'NO CLASSES TODAY',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        isWeekend ? 'Enjoy your weekend! 🌴' : 'No classes scheduled for today. 🎉',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final bool isDoneForDay = sessions.isNotEmpty && sessions.every((s) => s.isPast);
+
+    if (isDoneForDay) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Card(
+          color: theme.colorScheme.primaryContainer,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.check_circle_outline,
+                    size: 24,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ALL CLASSES COMPLETED',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        "You're done for the day! 🎉",
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Find current or next upcoming class session
+    final currentSession = sessions.firstWhere(
+      (s) => s.isCurrent,
+      orElse: () => sessions.firstWhere(
+        (s) => !s.isPast,
+        orElse: () => sessions.last,
+      ),
+    );
+
+    final isCurrent = currentSession.isCurrent;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Card(
+        color: isCurrent
+            ? theme.colorScheme.primaryContainer
+            : theme.colorScheme.surfaceContainerHigh,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: isCurrent ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
+            width: isCurrent ? 2 : 1,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isCurrent
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      isCurrent ? '⚡ CURRENT CLASS' : 'NEXT CLASS',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: isCurrent
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.onSecondaryContainer,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${currentSession.start.format(context)} - ${currentSession.end.format(context)}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                currentSession.courseName,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  if (currentSession.room != null && currentSession.room!.isNotEmpty) ...[
+                    Icon(Icons.location_on_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Text(currentSession.room!, style: theme.textTheme.bodySmall),
+                    const SizedBox(width: 16),
+                  ],
+                  if (currentSession.teacherName != null && currentSession.teacherName!.isNotEmpty) ...[
+                    Icon(Icons.person_outline, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        currentSession.teacherName!,
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

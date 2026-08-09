@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_background">#00000000</color>
+    <color name="widget_pill_bg">#0F0F10</color>
+    <color name="widget_card_bg">#242426</color>
+    <color name="widget_border">#00000000</color>
+    <color name="widget_text_primary">#FFFFFF</color>
+    <color name="widget_text_secondary">#AAAAAA</color>
+    <color name="widget_accent">#FFFFFF</color>
+    <color name="widget_ring_color">#FFFFFF</color>
+    <color name="widget_progress_bg">#3A3A3C</color>
+</resources>
