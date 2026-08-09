@@ -4,15 +4,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@android:color/transparent"
-    android:padding="6dp">
+    android:background="@drawable/widget_background"
+    android:padding="10dp">
 
     <!-- Top Header Row: Timetable Pill & Day Switcher Pill -->
     <RelativeLayout
         android:id="@+id/widget_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="4dp">
+        android:paddingHorizontal="2dp">
 
         <!-- Left Pill: Timetable -->
         <TextView
@@ -22,11 +22,11 @@
             android:layout_alignParentLeft="true"
             android:layout_centerVertical="true"
             android:background="@drawable/widget_pill_dark"
-            android:paddingHorizontal="18dp"
-            android:paddingVertical="8dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="5dp"
             android:text="Timetable"
             android:textColor="#FFFFFF"
-            android:textSize="13sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <!-- Right Pill: < Tuesday > (Day Switcher) -->
@@ -39,13 +39,13 @@
             android:background="@drawable/widget_pill_dark"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="4dp">
+            android:paddingHorizontal="4dp"
+            android:paddingVertical="2dp">
 
             <ImageButton
                 android:id="@+id/btn_prev_day"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:background="@android:color/transparent"
                 android:contentDescription="Previous Day" />
 
@@ -53,16 +53,16 @@
                 android:id="@+id/txt_day_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:paddingHorizontal="8dp"
+                android:paddingHorizontal="4dp"
                 android:text="Tuesday"
                 android:textColor="#FFFFFF"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:textStyle="bold" />
 
             <ImageButton
                 android:id="@+id/btn_next_day"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:background="@android:color/transparent"
                 android:contentDescription="Next Day" />
         </LinearLayout>
@@ -74,9 +74,9 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="4dp"
         android:divider="@android:color/transparent"
-        android:dividerHeight="12dp"
+        android:dividerHeight="4dp"
         android:scrollbars="none" />
 
     <!-- Empty View displayed when day has no classes -->
@@ -85,30 +85,30 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/widget_subject_card_pill"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="12dp">
 
         <TextView
             android:id="@+id/empty_message"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:text="No classes scheduled"
+            android:text="Sign in to Sterlin"
             android:textColor="@color/widget_text_primary"
-            android:textSize="18sp"
+            android:textSize="16sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/empty_sub"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="Free day! 🎉"
+            android:layout_marginTop="4dp"
+            android:text="Tap to open app"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="13sp" />
+            android:textSize="12sp" />
     </LinearLayout>
 
 </LinearLayout>

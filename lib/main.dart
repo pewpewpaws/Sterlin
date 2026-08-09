@@ -5,7 +5,7 @@ import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'services/etlab_api_service.dart';
 import 'services/background_service.dart';
-import 'widgets/skeleton_loader.dart';
+import 'components/skeleton_loader.dart';
 
 import 'services/app_logger_service.dart';
 
@@ -17,7 +17,7 @@ void callbackDispatcher() {
     AppLoggerService().log('Background task started: $task', category: 'BG_TASK');
     
     try {
-      if (task == BackgroundService.dailyFetchTask) {
+      if (task == BackgroundService.widgetRefreshTask) {
         final api = EtlabApiService();
         final success = await api.initSession();
         if (success) {
@@ -58,6 +58,13 @@ class AIPApp extends StatelessWidget {
       title: 'Sterlin',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
+      builder: (context, child) {
+        return SafeArea(
+          top: false,
+          bottom: true,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(

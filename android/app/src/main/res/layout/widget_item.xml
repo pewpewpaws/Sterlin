@@ -6,7 +6,8 @@
     android:background="@drawable/widget_subject_card_pill"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="16dp">
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="8dp">
 
     <!-- Left Side: Subject Information -->
     <LinearLayout
@@ -22,7 +23,7 @@
             android:layout_height="wrap_content"
             android:text="Subject Type"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="12sp"
+            android:textSize="11sp"
             android:textStyle="bold" />
 
         <!-- Subject Name (Code) -->
@@ -30,25 +31,25 @@
             android:id="@+id/item_course"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginTop="2dp"
             android:ellipsize="end"
-            android:maxLines="2"
+            android:maxLines="1"
             android:text="Subject Name (Code)"
             android:textColor="@color/widget_text_primary"
-            android:textSize="17sp"
+            android:textSize="15sp"
             android:textStyle="bold" />
 
-        <!-- Time Period + Teacher on the same line -->
+        <!-- Time Period + Teacher on the same line. -->
         <TextView
             android:id="@+id/item_time_period"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="1"
             android:text="Time Period · Teacher"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="13sp"
+            android:textSize="11sp"
             android:textStyle="bold" />
 
         <!-- Hidden: teacher kept as separate ID for backwards-compat with widget code -->
@@ -57,14 +58,14 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:visibility="gone" />
-   </LinearLayout>
+    </LinearLayout>
 
     <!-- Right Side: Plain-text attendance summary (no circle) -->
     <LinearLayout
         android:id="@+id/item_attendance_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="14dp"
+        android:layout_marginStart="12dp"
         android:gravity="center"
         android:orientation="vertical">
 
@@ -74,18 +75,18 @@
             android:layout_height="wrap_content"
             android:text="85%"
             android:textColor="@color/widget_text_primary"
-            android:textSize="20sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/item_attendance_ratio"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="1dp"
             android:text="17/20"
             android:textColor="@color/widget_text_secondary"
             android:textSize="11sp"
             android:textStyle="bold" />
-   </LinearLayout>
+    </LinearLayout>
 
 </LinearLayout>

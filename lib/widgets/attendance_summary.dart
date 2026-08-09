@@ -204,9 +204,12 @@ class _AttendanceCard extends StatelessWidget {
     final pctText = "${(pct * 100).round()}%";
     final hintText = attendance.getBunkOrRecoverHint(dutyLeaveCountsAsPresent: dutyLeaveCountsAsPresent);
 
+    final isDark = theme.brightness == Brightness.dark;
     final isSafe = pct >= attendance.requiredPercentage;
-    final color = isSafe ? Colors.green : theme.colorScheme.error;
-    final statusIcon = isSafe ? Icons.check_circle_outline : Icons.warning_amber_rounded;
+    final color = isSafe
+        ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D))
+        : (isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626));
+    final statusIcon = isSafe ? Icons.check_circle_rounded : Icons.warning_amber_rounded;
     final statusText = isSafe ? "SAFE" : "CRITICAL";
 
     final total = dutyLeaveCountsAsPresent
@@ -255,13 +258,17 @@ class _AttendanceCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: Colors.amber.shade100,
+                            color: isDark
+                                ? const Color(0xFF713F12).withAlpha(150)
+                                : const Color(0xFFFEF08A),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             "DL: ${attendance.classesOnDutyLeave}",
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: Colors.amber.shade900,
+                              color: isDark
+                                  ? const Color(0xFFFDE047)
+                                  : const Color(0xFF854D0E),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -284,29 +291,14 @@ class _AttendanceCard extends StatelessWidget {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: 54,
-                      height: 54,
-                      child: CircularProgressIndicator(
-                        value: pct,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        color: color,
-                        strokeWidth: 5,
-                      ),
-                    ),
-                    Text(
-                      pctText,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                  ],
+                Text(
+                  pctText,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   attendedTotalText,
                   style: theme.textTheme.labelSmall?.copyWith(

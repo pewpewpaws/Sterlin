@@ -30,7 +30,7 @@ class AppLoggerService {
   static const String _keyDebugEnabled = 'etlab_debug_logs_enabled';
   static const String _keyLogs = 'etlab_debug_logs_data';
 
-  bool _isDebugModeEnabled = false;
+  bool _isDebugModeEnabled = true;
   final List<LogEntry> _logs = [];
   final ValueNotifier<List<LogEntry>> logsNotifier = ValueNotifier([]);
 
@@ -41,8 +41,8 @@ class AppLoggerService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.reload();
-      _isDebugModeEnabled = prefs.getBool(_keyDebugEnabled) ?? false;
-      
+      _isDebugModeEnabled = prefs.getBool(_keyDebugEnabled) ?? true;
+
       final logsStr = prefs.getString(_keyLogs);
       if (logsStr != null) {
         final List<dynamic> decoded = jsonDecode(logsStr);
@@ -68,21 +68,24 @@ class AppLoggerService {
     if (!enabled) {
       clearLogs();
     } else {
-      log('setDebugMode(enabled: $enabled)', category: 'SYSTEM');
+      log('Logging enabled', category: 'SYSTEM');
     }
   }
 
   void log(String message, {String category = 'INFO'}) {
+    final upperCat = category.toUpperCase();
+    debugPrint('[$upperCat] $message');
+
     if (!_isDebugModeEnabled) return;
 
     final entry = LogEntry(
       timestamp: DateTime.now(),
-      category: category.toUpperCase(),
+      category: upperCat,
       message: message,
     );
 
     _logs.insert(0, entry);
-    if (_logs.length > 500) {
+    if (_logs.length > 250) {
       _logs.removeLast();
     }
     logsNotifier.value = List.unmodifiable(_logs);

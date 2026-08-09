@@ -1,4 +1,7 @@
-package com.example.planner
+package com.example.planner.widgets
+
+import com.example.planner.R
+import com.example.planner.MainActivity
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -76,7 +79,8 @@ class TimetableWidgetProvider : AppWidgetProvider() {
                 }
 
                 if (p.contains("widget_selected_day") || p.contains("flutter.widget_selected_day")) {
-                    currentDay = p.getInt("widget_selected_day", p.getInt("flutter.widget_selected_day", -1))
+                    val value = p.all["widget_selected_day"] ?: p.all["flutter.widget_selected_day"]
+                    currentDay = (value as? Number)?.toInt() ?: -1
                 }
             }
 
@@ -109,10 +113,7 @@ class TimetableWidgetProvider : AppWidgetProvider() {
     ) {
         super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions)
         buildViews(context, appWidgetManager, appWidgetId)
-        // Force list items to re-bind with new widget height so card sizes update immediately
-        if (newOptions.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0) >= 200) {
-            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_flipper)
-        }
+        appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.widget_flipper)
     }
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
@@ -144,7 +145,8 @@ class TimetableWidgetProvider : AppWidgetProvider() {
                 }
             }
             if (p.contains("widget_selected_day") || p.contains("flutter.widget_selected_day")) {
-                selectedDay = p.getInt("widget_selected_day", p.getInt("flutter.widget_selected_day", -1))
+                val value = p.all["widget_selected_day"] ?: p.all["flutter.widget_selected_day"]
+                selectedDay = (value as? Number)?.toInt() ?: -1
             }
         }
         if (selectedDay < 0 || selectedDay >= maxDays) {
@@ -153,35 +155,28 @@ class TimetableWidgetProvider : AppWidgetProvider() {
             if (selectedDay >= maxDays) selectedDay = 0
         }
 
-        // Build three variants: ultra-compact (2x2), medium (4x2), full (4x4)
-        val tinyViews = buildTinyRemoteViews(context, widgetId)
+        // Build variants: medium (4x2), full (4x4)
         val mediumViews = buildRemoteViews(context, widgetId, R.layout.widget_layout_4x2, selectedDay)
         val fullViews = buildRemoteViews(context, widgetId, R.layout.widget_layout, selectedDay)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // Responsive: pick variant by min cell footprint
             val viewMapping: Map<SizeF, RemoteViews> = mapOf(
-                SizeF(110f, 110f) to tinyViews,
                 SizeF(250f, 110f) to mediumViews,
                 SizeF(250f, 250f) to fullViews
             )
             manager.updateAppWidget(widgetId, RemoteViews(viewMapping))
-            // Tiny (2x2) has no list, so only notify the list when we use a list layout
             appWidgetManagerNotifyList(manager, widgetId)
         } else {
             // Android < 12 fallback: read min dims and pick a single layout
             val opts = manager.getAppWidgetOptions(widgetId)
-            val minWidth = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 220)
             val minHeight = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 140)
             val chosen = when {
-                minWidth < 200 || minHeight < 200 -> tinyViews
                 minHeight < 200 -> mediumViews
                 else -> fullViews
             }
             manager.updateAppWidget(widgetId, chosen)
-            if (chosen !== tinyViews) {
-                appWidgetManagerNotifyList(manager, widgetId)
-            }
+            appWidgetManagerNotifyList(manager, widgetId)
         }
     }
 
@@ -198,6 +193,23 @@ class TimetableWidgetProvider : AppWidgetProvider() {
         selectedDay: Int
     ): RemoteViews {
         val views = RemoteViews(context.packageName, layoutId)
+
+        val prefNames = listOf(PREFS_NAME, "FlutterSharedPreferences", "${context.packageName}_preferences")
+        var isLoggedIn = false
+        for (name in prefNames) {
+            val p = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+            if (!isLoggedIn) {
+                isLoggedIn = p.getBoolean("etlab_is_logged_in", false) || p.getBoolean("flutter.etlab_is_logged_in", false)
+            }
+        }
+
+        if (!isLoggedIn) {
+            views.setTextViewText(R.id.empty_message, "Sign in to Sterlin")
+            views.setTextViewText(R.id.empty_sub, "Tap to open app")
+        } else {
+            views.setTextViewText(R.id.empty_message, "No classes scheduled")
+            views.setTextViewText(R.id.empty_sub, "Free day! \uD83C\uDF89")
+        }
 
         views.setTextViewText(R.id.txt_day_name, DAY_NAMES[selectedDay])
 
@@ -248,91 +260,4 @@ class TimetableWidgetProvider : AppWidgetProvider() {
         return views
     }
 
-    /**
-     * Ultra-compact 2x2 layout: shows the next class + attendance %.
-     * No day nav, no list — reads first item from timetable_json directly.
-     * If user is not logged in (per the `etlab_is_logged_in` flag), shows
-     * a sign-in prompt instead of stale/empty timetable data.
-     */
-    private fun buildTinyRemoteViews(
-        context: Context,
-        widgetId: Int
-    ): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.widget_layout_2x2)
-
-        // Read logged-in flag + first item from timetable_json
-        val prefNames = listOf(PREFS_NAME, "FlutterSharedPreferences", "${context.packageName}_preferences")
-        var timetableJsonStr: String? = null
-        var isLoggedIn = false
-
-        for (name in prefNames) {
-            val p = context.getSharedPreferences(name, Context.MODE_PRIVATE)
-            if (timetableJsonStr.isNullOrEmpty()) {
-                timetableJsonStr = p.getString("timetable_json", null) ?: p.getString("flutter.timetable_json", null)
-            }
-            if (!isLoggedIn) {
-                isLoggedIn = p.getBoolean("etlab_is_logged_in", false) ||
-                              p.getBoolean("flutter.etlab_is_logged_in", false)
-            }
-        }
-
-        var courseName = "Free day"
-        var timeStr = ""
-        var pct = -1
-
-        try {
-            if (!timetableJsonStr.isNullOrEmpty()) {
-                val arr = org.json.JSONArray(timetableJsonStr)
-                if (arr.length() > 0) {
-                    val first = arr.getJSONObject(0)
-                    courseName = first.optString("courseName", courseName)
-                    timeStr = first.optString("timeStr", timeStr)
-                    pct = first.optInt("attendancePct", -1)
-                }
-            }
-        } catch (_: Exception) {}
-
-        if (!isLoggedIn) {
-            // Not signed in — prompt the user instead of showing stale/empty data.
-            views.setTextViewText(R.id.item_course, "Sign in to Sterlin")
-            views.setTextViewText(R.id.item_time_period, "Tap to open app")
-            views.setViewVisibility(R.id.item_attendance_container, android.view.View.GONE)
-            views.setTextViewText(R.id.header_title_pill, "Sterlin")
-        } else if (timeStr.isEmpty()) {
-            // Logged in but no class data (free day or first launch).
-            views.setTextViewText(R.id.item_course, courseName)
-            views.setTextViewText(R.id.item_time_period, "Open app to refresh")
-            if (pct >= 0) {
-                views.setProgressBar(R.id.item_attendance_progress, 100, pct, false)
-                views.setTextViewText(R.id.item_attendance_pct, "$pct%")
-                views.setViewVisibility(R.id.item_attendance_container, android.view.View.VISIBLE)
-            } else {
-                views.setViewVisibility(R.id.item_attendance_container, android.view.View.GONE)
-            }
-        } else {
-            views.setTextViewText(R.id.item_course, courseName)
-            views.setTextViewText(R.id.item_time_period, timeStr)
-            if (pct >= 0) {
-                views.setProgressBar(R.id.item_attendance_progress, 100, pct, false)
-                views.setTextViewText(R.id.item_attendance_pct, "$pct%")
-                views.setViewVisibility(R.id.item_attendance_container, android.view.View.VISIBLE)
-            } else {
-                views.setViewVisibility(R.id.item_attendance_container, android.view.View.GONE)
-            }
-        }
-
-        // Open App PendingIntent
-        val openAppIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val clickPendingIntent = PendingIntent.getActivity(
-            context, widgetId, openAppIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        views.setOnClickPendingIntent(android.R.id.background, clickPendingIntent)
-        views.setOnClickPendingIntent(R.id.item_course, clickPendingIntent)
-        views.setOnClickPendingIntent(R.id.header_title_pill, clickPendingIntent)
-
-        return views
-    }
 }

@@ -28,7 +28,7 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
   void initState() {
     super.initState();
     _initDayNames();
-    _selectedDayIndex = _todayDayIndex;
+    _selectedDayIndex = _todayDayIndex ?? 0;
   }
 
   void _initDayNames() {
@@ -41,10 +41,10 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
     _dayNames = allDays.sublist(0, count);
   }
 
-  int get _todayDayIndex {
+  int? get _todayDayIndex {
     final nowWeekday = DateTime.now().weekday;
     final index = nowWeekday - 1;
-    return (index >= 0 && index < _dayNames.length) ? index : 0;
+    return (index >= 0 && index < _dayNames.length) ? index : null;
   }
 
   void _prevDay() {
@@ -60,7 +60,10 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
   }
 
   List<ClassSession> _getSessionsForDay() {
-    if (_selectedDayIndex == _todayDayIndex && widget.initialSessions != null && widget.initialSessions!.isNotEmpty) {
+    if (_todayDayIndex != null &&
+        _selectedDayIndex == _todayDayIndex &&
+        widget.initialSessions != null &&
+        widget.initialSessions!.isNotEmpty) {
       return widget.initialSessions!;
     }
     return DashboardDataMapper.parseTimetableFromProfile(
@@ -75,7 +78,7 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final sessions = _getSessionsForDay();
-    final isTodaySelected = _selectedDayIndex == _todayDayIndex;
+    final isTodaySelected = _todayDayIndex != null && _selectedDayIndex == _todayDayIndex;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,7 +181,7 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
           )
         else
           SizedBox(
-            height: 175,
+            height: 180,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -228,7 +231,7 @@ class _ClassCard extends StatelessWidget {
         ),
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Container(
-          width: 220,
+          width: 235,
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,20 +240,50 @@ class _ClassCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHigh,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      session.sessionType.toUpperCase(),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
+                  Flexible(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            session.sessionType.toUpperCase(),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                        if (session.courseId.isNotEmpty && session.courseId.toUpperCase() != session.courseName.toUpperCase()) ...[
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                session.courseId.toUpperCase(),
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                  const SizedBox(width: 4),
                   if (session.status != null) _buildStatusBadge(theme, session.status!),
                 ],
               ),
@@ -310,27 +343,58 @@ class _ClassCard extends StatelessWidget {
   }
 
   Widget _buildStatusBadge(ThemeData theme, AttendanceStatus status) {
+    final isDark = theme.brightness == Brightness.dark;
     IconData icon;
-    Color color;
+    Color fgColor;
+    Color bgColor;
+    String label;
 
     switch (status) {
       case AttendanceStatus.present:
-        icon = Icons.check_circle;
-        color = Colors.green;
+        icon = Icons.check_circle_rounded;
+        fgColor = isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D);
+        bgColor = isDark ? const Color(0xFF14532D).withAlpha(150) : const Color(0xFFDCFCE7);
+        label = "PRESENT";
         break;
       case AttendanceStatus.absent:
-        icon = Icons.cancel;
-        color = theme.colorScheme.error;
+        icon = Icons.cancel_rounded;
+        fgColor = isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
+        bgColor = isDark ? const Color(0xFF7F1D1D).withAlpha(150) : const Color(0xFFFEE2E2);
+        label = "ABSENT";
         break;
       case AttendanceStatus.dutyLeave:
-        icon = Icons.assignment_turned_in;
-        color = Colors.amber.shade800;
+        icon = Icons.assignment_turned_in_rounded;
+        fgColor = isDark ? const Color(0xFFFDE047) : const Color(0xFF854D0E);
+        bgColor = isDark ? const Color(0xFF713F12).withAlpha(150) : const Color(0xFFFEF08A);
+        label = "DUTY LEAVE";
         break;
       default:
         return const SizedBox.shrink();
     }
 
-    return Icon(icon, size: 16, color: color);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: fgColor),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: TextStyle(
+              color: fgColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 9.5,
+              letterSpacing: 0.3,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

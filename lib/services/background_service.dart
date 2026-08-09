@@ -10,11 +10,8 @@ import 'app_logger_service.dart';
 ///   to run at `last_manual_refresh + 1 hour`. This is the primary trigger.
 /// - A [PeriodicWorkRequest] every 1h is also registered as a safety net
 ///   in case the OS drops the one-time job (Doze, app force-stop, etc.).
-///
-/// The worker is the same `WidgetRefreshWorker` registered in `main.dart`
-/// `callbackDispatcher`, which calls `EtlabApiService.fetchAllData()`.
 class BackgroundService {
-  static const String _widgetRefreshTask = 'widget_refresh_task';
+  static const String widgetRefreshTask = 'widget_refresh_task';
   static const String _oneTimeUniqueName = 'widget_refresh_one_time';
   static const String _periodicUniqueName = 'widget_refresh_periodic';
 
@@ -56,7 +53,7 @@ class BackgroundService {
 
       await Workmanager().registerOneOffTask(
         _oneTimeUniqueName,
-        _widgetRefreshTask,
+        widgetRefreshTask,
         initialDelay: delay,
         constraints: Constraints(networkType: NetworkType.connected),
         existingWorkPolicy: ExistingWorkPolicy.replace,
@@ -68,8 +65,7 @@ class BackgroundService {
       await _ensurePeriodicRegistered();
 
       AppLoggerService().log(
-        'Scheduled next widget refresh in '
-        '${delay.inMinutes}m ${delay.inSeconds % 60}s',
+        'Scheduled next refresh in ${delay.inMinutes}m ${delay.inSeconds % 60}s',
         category: 'BG_TASK',
       );
     } catch (e) {
@@ -84,7 +80,7 @@ class BackgroundService {
     try {
       await Workmanager().registerPeriodicTask(
         _periodicUniqueName,
-        _widgetRefreshTask,
+        widgetRefreshTask,
         frequency: const Duration(hours: 1),
         constraints: Constraints(networkType: NetworkType.connected),
         existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
@@ -112,13 +108,4 @@ class BackgroundService {
       AppLoggerService().log('cancelAll error: $e', category: 'ERROR');
     }
   }
-
-  /// Backwards-compatible alias — kept so any existing callers don't break.
-  @Deprecated('Use scheduleNextRefresh() instead')
-  static Future<void> scheduleDaily8AmTask() => scheduleNextRefresh();
-
-  /// Backwards-compatible constant for the daily task name. The worker
-  /// dispatcher in main.dart also listens to [_widgetRefreshTask], so this
-  /// is no longer needed, but is kept to avoid breaking imports.
-  static const String dailyFetchTask = _widgetRefreshTask;
 }

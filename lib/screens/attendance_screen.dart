@@ -247,8 +247,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           title: const Text('Overall Attendance'),
           bottom: const TabBar(
             tabs: [
-              Tab(text: 'Subjectwise'),
-              Tab(text: 'Calendar'),
+              Tab(text: 'By Subject'),
+              Tab(text: 'By Day'),
             ],
           ),
         ),
@@ -284,10 +284,9 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // 24 months back + current + 24 months forward = 49 swipeable tiles
-  static const int _monthsBack = 24;
-  static const int _monthsForward = 24;
-  static const int _totalMonths = _monthsBack + 1 + _monthsForward;
+  // 6 months prior up to current month (covers a full semester)
+  static const int _monthsBack = 6;
+  static const int _totalMonths = _monthsBack + 1;
   static const int _initialPageIndex = _monthsBack;
 
   late DateTime _focusedMonth;
@@ -458,29 +457,42 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
     final selectedKey = _selectedDate != null ? _formatDateKey(_selectedDate!) : null;
     final selectedDayData = selectedKey != null ? _monthData[selectedKey] : null;
 
-    return Column(
-      children: [
-        // Swipeable month tiles
-        Expanded(
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: _onPageChanged,
-            itemCount: _totalMonths,
-            itemBuilder: (context, index) {
-              final month = _months[index];
-              final key = '${month.year}_${month.month}';
-              final data = _allMonthsData[key] ?? const {};
-              return _buildMonthTile(theme, month, data);
-            },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        final cellWidth = (w - 100) / 7;
+        final cellHeight = cellWidth / 1.05;
+        final expectedHeight = (6 * cellHeight) + 235; // Includes paddings, headers, and grid spacing
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 16.0),
+          child: Column(
+            children: [
+              // Swipeable month tiles
+              SizedBox(
+                height: expectedHeight,
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: _onPageChanged,
+                  itemCount: _totalMonths,
+                  itemBuilder: (context, index) {
+                    final month = _months[index];
+                    final key = '${month.year}_${month.month}';
+                    final data = _allMonthsData[key] ?? const {};
+                    return _buildMonthTile(theme, month, data);
+                  },
+                ),
+              ),
+              // Day Details Section (outside the swipeable tiles, pinned at bottom)
+              if (_selectedDate != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: _buildSelectedDayDetails(theme, selectedDayData),
+                ),
+            ],
           ),
-        ),
-        // Day Details Section (outside the swipeable tiles, pinned at bottom)
-        if (_selectedDate != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: _buildSelectedDayDetails(theme, selectedDayData),
-          ),
-      ],
+        );
+      },
     );
   }
 
@@ -500,8 +512,19 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
     final firstWeekday = DateTime(year, m, 1).weekday; // Mon=1..Sun=7
     final leadingEmptySlots = firstWeekday % 7; // Sun=0, Mon=1...
 
+    final now = DateTime.now();
     final isCurrentMonth =
         _focusedMonth.year == year && _focusedMonth.month == m;
+    final isLatestMonth = year > now.year || (year == now.year && m >= now.month);
+    final isEarliestMonth = _months.isNotEmpty &&
+        _months.first.year == year &&
+        _months.first.month == m;
+
+    final isDark = theme.brightness == Brightness.dark;
+    final presentColor = isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D);
+    final absentColor = isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
+    final dutyLeaveColor = isDark ? const Color(0xFFFACC15) : const Color(0xFFEAB308);
+    final dutyLeaveTextColor = isDark ? const Color(0xFFFDE047) : const Color(0xFF854D0E);
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -523,7 +546,8 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.chevron_left),
-                    onPressed: () => _changeMonth(-1),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: isEarliestMonth ? null : () => _changeMonth(-1),
                   ),
                   Row(
                     children: [
@@ -545,7 +569,8 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.chevron_right),
-                    onPressed: () => _changeMonth(1),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: isLatestMonth ? null : () => _changeMonth(1),
                   ),
                 ],
               ),
@@ -593,59 +618,64 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
                       _selectedDate!.month == m &&
                       _selectedDate!.day == dayNum;
 
-                  final isDark = theme.brightness == Brightness.dark;
-
                   Color? bgColor;
                   Color textColor = theme.colorScheme.onSurface;
-                  bool hasPresent = false;
                   final List<Widget> periodDots = [];
 
                   final isWeekend = currentDt.weekday == DateTime.saturday ||
                       currentDt.weekday == DateTime.sunday;
-                  bool hasValidClasses = false;
-                  if (dayData != null) {
-                    final periods = dayData['periods'] as List<dynamic>? ?? [];
-                    hasValidClasses = periods.any((p) {
-                      final att =
-                          p['attendance']?.toString().trim().toLowerCase() ?? '';
-                      return att != 'n/a' &&
-                          att != 'na' &&
-                          att.isNotEmpty;
-                    });
-                  }
+                  final rawPeriods = dayData?['periods'] as List<dynamic>? ?? [];
+                  final validPeriods = rawPeriods.where((p) {
+                    if (p is! Map) return false;
+                    final att =
+                        p['attendance']?.toString().trim().toLowerCase() ?? '';
+                    return att != 'n/a' &&
+                        att != 'na' &&
+                        att.isNotEmpty;
+                  }).toList();
 
+                  final bool hasValidClasses = validPeriods.isNotEmpty;
                   final isHoliday = (dayData?['holiday'] == true) ||
                       (isWeekend && !hasValidClasses);
-                  final periods = dayData?['periods'] as List<dynamic>? ?? [];
+
+                  final bool hasAbsent = validPeriods.any((p) {
+                    final att = p['attendance']?.toString().trim().toLowerCase() ?? '';
+                    return att == 'absent';
+                  });
+
+                  final bool hasDutyLeave = validPeriods.any((p) {
+                    final att = p['attendance']?.toString().trim().toLowerCase() ?? '';
+                    return att == 'dutyleave' || att == 'duty leave';
+                  });
+
+                  final bool allPresent = hasValidClasses && !hasAbsent && !hasDutyLeave;
+                  final bool allPresentWithDL = hasValidClasses && !hasAbsent && hasDutyLeave;
 
                   if (isHoliday) {
-                    bgColor = theme.colorScheme.surfaceContainerHighest;
-                    textColor =
-                        theme.colorScheme.onSurfaceVariant.withAlpha(140);
-                  } else if (periods.isNotEmpty) {
-                    for (var p in periods) {
+                    bgColor = isDark
+                        ? theme.colorScheme.surfaceContainerHighest.withAlpha(120)
+                        : theme.colorScheme.surfaceContainerHighest.withAlpha(150);
+                    textColor = theme.colorScheme.onSurfaceVariant.withAlpha(140);
+                  } else if (hasValidClasses) {
+                    for (var p in validPeriods) {
                       final att =
-                          p['attendance']?.toString().toLowerCase() ?? '';
+                          p['attendance']?.toString().trim().toLowerCase() ?? '';
                       Color dotColor = Colors.transparent;
 
                       if (att == 'present') {
-                        hasPresent = true;
-                        dotColor = isDark
-                            ? Colors.greenAccent.shade200
-                            : Colors.green.shade700;
+                        dotColor = presentColor;
                       } else if (att == 'absent') {
-                        dotColor = Colors.redAccent;
+                        dotColor = absentColor;
                       } else if (att == 'dutyleave' || att == 'duty leave') {
-                        dotColor = Colors.amber;
+                        dotColor = dutyLeaveColor;
                       }
 
                       if (dotColor != Colors.transparent) {
                         periodDots.add(
                           Container(
-                            width: 4,
-                            height: 4,
-                            margin:
-                                const EdgeInsets.symmetric(horizontal: 1),
+                            width: 5.5,
+                            height: 5.5,
+                            margin: const EdgeInsets.symmetric(horizontal: 1.2),
                             decoration: BoxDecoration(
                               color: dotColor,
                               shape: BoxShape.circle,
@@ -654,28 +684,37 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
                         );
                       }
                     }
-                  }
 
-                  if (hasPresent) {
-                    textColor = isDark
-                        ? Colors.greenAccent.shade200
-                        : Colors.green.shade800;
+                    if (allPresent) {
+                      textColor = presentColor;
+                    } else if (allPresentWithDL) {
+                      textColor = dutyLeaveTextColor;
+                    }
                   }
 
                   if (isSelected) {
                     bgColor = theme.colorScheme.primaryContainer;
-                    textColor = isDark
-                        ? (hasPresent
-                            ? Colors.greenAccent.shade100
-                            : theme.colorScheme.onPrimaryContainer)
-                        : (hasPresent
-                            ? Colors.green.shade900
-                            : theme.colorScheme.onPrimaryContainer);
+                    textColor = theme.colorScheme.onPrimaryContainer;
                   }
 
                   if (isToday) {
-                    bgColor = theme.colorScheme.primary;
-                    textColor = theme.colorScheme.onPrimary;
+                    bgColor = isSelected
+                        ? theme.colorScheme.primaryContainer
+                        : theme.colorScheme.primary.withAlpha(isDark ? 55 : 30);
+                    textColor = theme.colorScheme.primary;
+                  }
+
+                  Border? cellBorder;
+                  if (isToday) {
+                    cellBorder = Border.all(
+                      color: theme.colorScheme.primary,
+                      width: 2.0,
+                    );
+                  } else if (isSelected) {
+                    cellBorder = Border.all(
+                      color: theme.colorScheme.primary,
+                      width: 1.5,
+                    );
                   }
 
                   return InkWell(
@@ -689,10 +728,7 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
                       decoration: BoxDecoration(
                         color: bgColor,
                         borderRadius: BorderRadius.circular(10),
-                        border: isSelected && !isToday
-                            ? Border.all(
-                                color: theme.colorScheme.primary, width: 1.0)
-                            : null,
+                        border: cellBorder,
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -708,15 +744,16 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
                                   color: textColor,
                                   fontWeight: (isToday ||
                                           isSelected ||
-                                          hasPresent)
+                                          allPresent ||
+                                          allPresentWithDL)
                                       ? FontWeight.bold
-                                      : FontWeight.normal,
+                                      : FontWeight.w600,
                                   fontSize: 13,
                                 ),
                               ),
                             ),
                             if (periodDots.isNotEmpty) ...[
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 3),
                               FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Row(
@@ -733,6 +770,18 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
                   );
                 },
               ),
+              const SizedBox(height: 10),
+              // Legend Row for Attendance Indicators
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildLegendItem('Present', presentColor),
+                  const SizedBox(width: 14),
+                  _buildLegendItem('Absent', absentColor),
+                  const SizedBox(width: 14),
+                  _buildLegendItem('Duty Leave', dutyLeaveColor, textColor: dutyLeaveTextColor),
+                ],
+              ),
             ],
           ),
         ),
@@ -740,9 +789,35 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
     );
   }
 
+  Widget _buildLegendItem(String label, Color color, {Color? textColor}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6.5,
+          height: 6.5,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: textColor ?? color,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSelectedDayDetails(ThemeData theme, Map<String, dynamic>? dayData) {
     if (_selectedDate == null) return const SizedBox.shrink();
 
+    final isDark = theme.brightness == Brightness.dark;
     final dateStr = "${_monthNames[_selectedDate!.month - 1]} ${_selectedDate!.day}, ${_selectedDate!.year}";
 
     if (dayData == null) {
@@ -782,13 +857,16 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
           Card(
             elevation: 0,
             color: theme.colorScheme.surfaceContainerHigh,
-            child: const Padding(
-              padding: EdgeInsets.all(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Icon(Icons.beach_access_outlined, color: Colors.amber),
-                  SizedBox(width: 12),
-                  Text('Holiday / No Classes Scheduled', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Icon(
+                    Icons.beach_access_outlined,
+                    color: isDark ? const Color(0xFFFACC15) : const Color(0xFFCA8A04),
+                  ),
+                  const SizedBox(width: 12),
+                  const Text('Holiday / No Classes Scheduled', style: TextStyle(fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -818,15 +896,16 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
               Color badgeFg = theme.colorScheme.onSurfaceVariant;
               String attLabel = attendance.toUpperCase();
 
-              if (attendance.toLowerCase() == 'present') {
-                badgeBg = Colors.green.shade100;
-                badgeFg = Colors.green.shade900;
-              } else if (attendance.toLowerCase() == 'absent') {
-                badgeBg = Colors.red.shade100;
-                badgeFg = Colors.red.shade900;
-              } else if (attendance.toLowerCase() == 'dutyleave' || attendance.toLowerCase() == 'duty leave') {
-                badgeBg = Colors.amber.shade100;
-                badgeFg = Colors.amber.shade900;
+              final attLower = attendance.toLowerCase();
+              if (attLower == 'present') {
+                badgeBg = isDark ? const Color(0xFF14532D).withAlpha(180) : const Color(0xFFDCFCE7);
+                badgeFg = isDark ? const Color(0xFF86EFAC) : const Color(0xFF166534);
+              } else if (attLower == 'absent') {
+                badgeBg = isDark ? const Color(0xFF7F1D1D).withAlpha(180) : const Color(0xFFFEE2E2);
+                badgeFg = isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B);
+              } else if (attLower == 'dutyleave' || attLower == 'duty leave') {
+                badgeBg = isDark ? const Color(0xFF713F12).withAlpha(180) : const Color(0xFFFEF08A);
+                badgeFg = isDark ? const Color(0xFFFDE047) : const Color(0xFF854D0E);
               }
 
               return Card(

@@ -6,22 +6,15 @@ import '../services/background_service.dart';
 import '../services/notifications_service.dart';
 import '../widgets/todays_timetable.dart';
 import '../widgets/attendance_summary.dart';
-import '../widgets/dashboard_tiles.dart';
 import '../widgets/next_class_card.dart';
-import '../widgets/skeleton_loader.dart';
+import '../components/skeleton_loader.dart';
 import '../widgets/app_drawer.dart';
-import 'login_screen.dart';
-import 'teachers_screen.dart';
-import 'attendance_screen.dart';
 import 'notifications_screen.dart';
-import 'dart:async';
-import 'package:connectivity_plus/connectivity_plus.dart';
 
 enum DashboardWidgetType {
   nextClass,
   timetable,
   attendance,
-  quickAccess,
 }
 
 extension DashboardWidgetTypeExtension on DashboardWidgetType {
@@ -33,8 +26,6 @@ extension DashboardWidgetTypeExtension on DashboardWidgetType {
         return "Today's Timetable";
       case DashboardWidgetType.attendance:
         return "Today's Attendance Summary";
-      case DashboardWidgetType.quickAccess:
-        return "Quick Access Shortcuts";
     }
   }
 
@@ -46,8 +37,6 @@ extension DashboardWidgetTypeExtension on DashboardWidgetType {
         return Icons.calendar_today_outlined;
       case DashboardWidgetType.attendance:
         return Icons.pie_chart_outline;
-      case DashboardWidgetType.quickAccess:
-        return Icons.grid_view;
     }
   }
 }
@@ -62,15 +51,14 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   late List<ClassSession> _timetable;
   late List<CourseAttendance> _attendance;
-  bool _dutyLeaveCountsAsPresent = true;
+  final bool _dutyLeaveCountsAsPresent = true;
   bool _isLoading = false;
 
   // All widgets and their order
-  List<DashboardWidgetType> _widgetOrder = [
+  final List<DashboardWidgetType> _widgetOrder = [
     DashboardWidgetType.nextClass,
     DashboardWidgetType.timetable,
     DashboardWidgetType.attendance,
-    DashboardWidgetType.quickAccess,
   ];
 
   // Active home screen widgets
@@ -78,20 +66,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     DashboardWidgetType.nextClass,
     DashboardWidgetType.timetable,
     DashboardWidgetType.attendance,
-    DashboardWidgetType.quickAccess,
   };
-
-  bool _hasInternet = true;
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
     _loadDataFromApi();
-    _checkInitialConnectivity();
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((results) {
-      _updateConnectionStatus(results);
-    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && EtlabApiService().profileData != null) {
@@ -100,24 +80,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         NotificationsService().requestPermission();
       }
     });
-  }
-
-  Future<void> _checkInitialConnectivity() async {
-    final results = await Connectivity().checkConnectivity();
-    _updateConnectionStatus(results);
-  }
-
-  void _updateConnectionStatus(List<ConnectivityResult> results) {
-    if (!mounted) return;
-    setState(() {
-      _hasInternet = !results.contains(ConnectivityResult.none) && results.isNotEmpty;
-    });
-  }
-
-  @override
-  void dispose() {
-    _connectivitySubscription?.cancel();
-    super.dispose();
   }
 
   void _loadDataFromApi() {
@@ -138,6 +100,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     HomeWidgetService.updateHomeScreenWidget(
       timetable: _timetable,
       attendance: _attendance,
+      profileData: profile,
+      attendanceData: subjects,
+      teachersData: teachers,
     );
   }
 
@@ -149,55 +114,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final todaysCourseNames = _timetable.map((s) => s.courseName.toLowerCase()).toSet();
 
     final filtered = _attendance.where((a) {
-      final cId = a.courseId.toLowerCase();
-      final cName = a.courseName.toLowerCase();
-      return todaysCourseIds.contains(cId) || todaysCourseNames.contains(cName);
+      final idMatch = todaysCourseIds.contains(a.courseId.toLowerCase());
+      final nameMatch = todaysCourseNames.contains(a.courseName.toLowerCase());
+      return idMatch || nameMatch;
     }).toList();
 
     return filtered.isNotEmpty ? filtered : _attendance;
   }
 
   Future<void> _refreshData() async {
+    if (_isLoading) return;
     setState(() {
       _isLoading = true;
     });
+
     try {
-      await EtlabApiService().fetchAllData();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }
+      final api = EtlabApiService();
+      await api.fetchAllData();
+      if (!mounted) return;
+      _loadDataFromApi();
+    } catch (_) {}
+
     if (!mounted) return;
-    _loadDataFromApi();
     setState(() {
       _isLoading = false;
     });
-  }
-
-  void _handleTileTap(String route) {
-    if (route == '/faculty') {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const TeachersScreen()),
-      );
-    } else if (route == '/attendance') {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const AttendanceScreen()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Navigation section: $route"),
-          duration: const Duration(seconds: 1),
-        ),
-      );
-    }
   }
 
   void _openWidgetCustomizer() {
@@ -239,6 +180,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     Flexible(
                       child: ReorderableListView(
                         shrinkWrap: true,
+                        // ignore: deprecated_member_use
                         onReorder: (oldIndex, newIndex) {
                           setModalState(() {
                             setState(() {
@@ -297,14 +239,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Future<void> _logout() async {
-    await EtlabApiService().logout();
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
-  }
-
   Widget _buildDashboardWidget(DashboardWidgetType type, Map<String, dynamic>? profile) {
     switch (type) {
       case DashboardWidgetType.nextClass:
@@ -324,8 +258,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _loadDataFromApi();
           },
         );
-      case DashboardWidgetType.quickAccess:
-        return DashboardTilesWidget(onTileTap: _handleTileTap);
     }
   }
 
@@ -339,13 +271,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         appBar: AppBar(
           title: const Text('Sterlin'),
           centerTitle: false,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Logout',
-              onPressed: _logout,
-            ),
-          ],
         ),
         body: const DashboardSkeletonLoader(),
       );
@@ -382,11 +307,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             tooltip: 'Refresh Data',
             onPressed: _refreshData,
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: _logout,
-          ),
         ],
       ),
       body: RefreshIndicator(
@@ -399,114 +319,96 @@ class _DashboardScreenState extends State<DashboardScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (!_hasInternet)
-                Container(
-                  width: double.infinity,
-                  color: Colors.red,
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.wifi_off, color: Colors.white, size: 20),
-                      SizedBox(width: 8),
-                      Text(
-                        'No internet connection',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              // User Profile Banner
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Card(
-                  color: theme.colorScheme.primaryContainer,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundColor: theme.colorScheme.primary,
-                          backgroundImage: (photoUrl != null && photoUrl.startsWith('http'))
-                              ? NetworkImage(photoUrl)
-                              : null,
-                          child: (photoUrl == null || !photoUrl.startsWith('http'))
-                              ? Text(
-                                  studentName.isNotEmpty ? studentName[0] : 'S',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    color: theme.colorScheme.onPrimary,
-                                    fontWeight: FontWeight.bold,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // User Profile Banner
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Card(
+                      color: theme.colorScheme.primaryContainer,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 28,
+                              backgroundColor: theme.colorScheme.primary,
+                              backgroundImage: (photoUrl != null && photoUrl.startsWith('http'))
+                                  ? NetworkImage(photoUrl)
+                                  : null,
+                              child: (photoUrl == null || !photoUrl.startsWith('http'))
+                                  ? Text(
+                                      studentName.isNotEmpty ? studentName[0] : 'S',
+                                      style: TextStyle(
+                                        fontSize: 22,
+                                        color: theme.colorScheme.onPrimary,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    studentName,
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.onPrimaryContainer,
+                                    ),
                                   ),
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                studentName,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.onPrimaryContainer,
-                                ),
+                                  if (regNo.isNotEmpty)
+                                    Text(
+                                      'Reg: $regNo',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.onPrimaryContainer,
+                                      ),
+                                    ),
+                                  if (sem.isNotEmpty)
+                                    Text(
+                                      sem,
+                                      style: theme.textTheme.labelMedium?.copyWith(
+                                        color: theme.colorScheme.onPrimaryContainer,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                ],
                               ),
-                              if (regNo.isNotEmpty)
-                                Text(
-                                  'Reg: $regNo',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onPrimaryContainer,
-                                  ),
-                                ),
-                              if (sem.isNotEmpty)
-                                Text(
-                                  sem,
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: theme.colorScheme.onPrimaryContainer,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 4),
-              if (_isLoading) const Center(child: LinearProgressIndicator()),
+                  const SizedBox(height: 4),
+                  if (_isLoading) const Center(child: LinearProgressIndicator()),
 
-              // Active Dashboard Widgets
-              ..._widgetOrder.where((w) => _activeWidgets.contains(w)).map((type) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildDashboardWidget(type, profile),
-              )),
+                  // Active Dashboard Widgets
+                  ..._widgetOrder.where((w) => _activeWidgets.contains(w)).map((type) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _buildDashboardWidget(type, profile),
+                  )),
 
-              // Add Widget Button Footer
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  child: OutlinedButton.icon(
-                    onPressed: _openWidgetCustomizer,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add / Customize Widgets'),
+                  // Add Widget Button Footer
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: OutlinedButton.icon(
+                        onPressed: _openWidgetCustomizer,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add / Customize Widgets'),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+                ],
               ),
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
         ),
       ),
-    ),
-  ),
-);
+    );
   }
 }
