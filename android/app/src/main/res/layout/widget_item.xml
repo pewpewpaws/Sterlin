@@ -23,7 +23,11 @@
             android:layout_height="wrap_content"
             android:text="Subject Type"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="11sp"
+            android:textSize="13sp"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="9sp"
+            android:autoSizeMaxTextSize="13sp"
+            android:autoSizeStepGranularity="1sp"
             android:textStyle="bold" />
 
         <!-- Subject Name (Code) -->
@@ -36,7 +40,11 @@
             android:maxLines="1"
             android:text="Subject Name (Code)"
             android:textColor="@color/widget_text_primary"
-            android:textSize="15sp"
+            android:textSize="18sp"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="12sp"
+            android:autoSizeMaxTextSize="18sp"
+            android:autoSizeStepGranularity="1sp"
             android:textStyle="bold" />
 
         <!-- Time Period + Teacher on the same line. -->
@@ -49,7 +57,11 @@
             android:maxLines="1"
             android:text="Time Period · Teacher"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="11sp"
+            android:textSize="13sp"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="9sp"
+            android:autoSizeMaxTextSize="13sp"
+            android:autoSizeStepGranularity="1sp"
             android:textStyle="bold" />
 
         <!-- Hidden: teacher kept as separate ID for backwards-compat with widget code -->
@@ -75,7 +87,11 @@
             android:layout_height="wrap_content"
             android:text="85%"
             android:textColor="@color/widget_text_primary"
-            android:textSize="18sp"
+            android:textSize="22sp"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="14sp"
+            android:autoSizeMaxTextSize="22sp"
+            android:autoSizeStepGranularity="1sp"
             android:textStyle="bold" />
 
         <TextView
@@ -85,7 +101,11 @@
             android:layout_marginTop="1dp"
             android:text="17/20"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="11sp"
+            android:textSize="13sp"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="9sp"
+            android:autoSizeMaxTextSize="13sp"
+            android:autoSizeStepGranularity="1sp"
             android:textStyle="bold" />
     </LinearLayout>
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'etlab_models.dart';
 import '../services/etlab_api_service.dart';
 
 enum AttendanceStatus { present, absent, dutyLeave, cancelled, holiday }
@@ -77,29 +78,35 @@ class CourseAttendance {
 
   int get totalClassesTracked => classesAttended + classesOnDutyLeave + classesAbsent;
 
+  int calculateSafeSkips({required bool dutyLeaveCountsAsPresent}) {
+    final total = dutyLeaveCountsAsPresent
+        ? classesAttended + classesOnDutyLeave + classesAbsent
+        : classesAttended + classesAbsent;
+    if (total == 0) return 0;
+    final attended = dutyLeaveCountsAsPresent ? classesAttended + classesOnDutyLeave : classesAttended;
+    final skips = ((attended / requiredPercentage) - total).floor();
+    return skips > 0 ? skips : 0;
+  }
+
+  bool isOnBoundary({required bool dutyLeaveCountsAsPresent}) {
+    final pct = calculatePercentage(dutyLeaveCountsAsPresent: dutyLeaveCountsAsPresent);
+    if (pct < requiredPercentage) return false;
+    return calculateSafeSkips(dutyLeaveCountsAsPresent: dutyLeaveCountsAsPresent) == 0;
+  }
+
   String getBunkOrRecoverHint({required bool dutyLeaveCountsAsPresent}) {
     final pct = calculatePercentage(dutyLeaveCountsAsPresent: dutyLeaveCountsAsPresent);
-    final total = totalClassesTracked;
+    final total = dutyLeaveCountsAsPresent
+        ? classesAttended + classesOnDutyLeave + classesAbsent
+        : classesAttended + classesAbsent;
     final attended = dutyLeaveCountsAsPresent ? classesAttended + classesOnDutyLeave : classesAttended;
 
     if (pct >= requiredPercentage) {
-      int safeSkips = 0;
-      int tempTotal = total;
-      while ((attended / (tempTotal + 1)) >= requiredPercentage) {
-        safeSkips++;
-        tempTotal++;
-      }
+      final safeSkips = calculateSafeSkips(dutyLeaveCountsAsPresent: dutyLeaveCountsAsPresent);
       return safeSkips > 0 ? "Can skip next $safeSkips classes" : "On boundary! Don't skip next class";
     } else {
-      int needAttend = 0;
-      int tempAttended = attended;
-      int tempTotal = total;
-      while ((tempAttended / tempTotal) < requiredPercentage) {
-        needAttend++;
-        tempAttended++;
-        tempTotal++;
-      }
-      return "Attend next $needAttend to recover";
+      final needAttend = ((requiredPercentage * total - attended) / (1.0 - requiredPercentage)).ceil();
+      return "Attend next ${needAttend > 0 ? needAttend : 1} to recover";
     }
   }
 }
@@ -127,7 +134,9 @@ class DashboardDataMapper {
     Map<String, dynamic>? subjectsData,
     Map<String, dynamic>? teachersData,
   }) {
-    if (profileData == null || !profileData.containsKey('timetable')) {
+    if (profileData == null) return [];
+    final profile = EtlabProfile.fromJson(profileData);
+    if (profile.timetable == null || profile.timetable!.isEmpty) {
       return [];
     }
 
@@ -167,7 +176,7 @@ class DashboardDataMapper {
         }
       }
 
-      final rawTimetable = profileData['timetable'] as List<dynamic>;
+      final rawTimetable = profile.timetable!;
       final nowWeekday = DateTime.now().weekday;
       
       int maxDayIndex = (rawTimetable.length - 1).clamp(4, 6);
@@ -189,14 +198,14 @@ class DashboardDataMapper {
 
       if (selectedDay >= rawTimetable.length) return [];
 
-      final dayPeriods = rawTimetable[selectedDay] as List<dynamic>;
+      final dayPeriods = rawTimetable[selectedDay];
       final List<ClassSession> result = [];
 
       for (int i = 0; i < dayPeriods.length; i++) {
-        final period = dayPeriods[i] as Map<String, dynamic>;
-        var subjectCode = (period['subject']?.toString() ?? '').trim().toUpperCase();
-        final typeRaw = period['type'] ?? 'TH';
-        final timeStr = period['timeperiod'] ?? '';
+        final period = dayPeriods[i];
+        var subjectCode = (period.subject ?? '').trim().toUpperCase();
+        final typeRaw = period.type ?? 'TH';
+        final timeStr = period.timeperiod ?? '';
 
         if (subjectCode == 'FREE PERIOD' || typeRaw == 'FR' || timeStr.toString().isEmpty) {
           continue;
@@ -224,7 +233,7 @@ class DashboardDataMapper {
 
         String? teacherName;
         if (!isLab) {
-          var rawTeacher = period['teacher']?.toString().trim() ?? '';
+          var rawTeacher = period.teacher?.trim() ?? '';
           if (rawTeacher.toUpperCase() == 'NA' || rawTeacher.toUpperCase() == 'N/A') {
             rawTeacher = '';
           }
@@ -309,46 +318,28 @@ class DashboardDataMapper {
     double? targetPercentage,
   }) {
     if (subjectsData == null) return [];
-
     final reqPct = targetPercentage ?? EtlabApiService().targetAttendancePct;
 
     try {
-      List<dynamic>? rawSubjects;
-      if (subjectsData.containsKey('subjects') && subjectsData['subjects'] is List) {
-        rawSubjects = subjectsData['subjects'] as List<dynamic>;
-      } else if (subjectsData.containsKey('attends') && subjectsData['attends'] is List) {
-        rawSubjects = subjectsData['attends'] as List<dynamic>;
-      } else if (subjectsData.containsKey('data') && subjectsData['data'] is List) {
-        rawSubjects = subjectsData['data'] as List<dynamic>;
-      }
-
+      List<dynamic>? rawSubjects = subjectsData['subjects'] ?? subjectsData['attends'] ?? subjectsData['data'] ?? subjectsData['semesterlist'];
       if (rawSubjects == null) return [];
 
-      final List<CourseAttendance> result = [];
-
-      for (var s in rawSubjects) {
-        if (s is! Map<String, dynamic>) continue;
-        final item = s;
-        final code = (item['code'] ?? item['subject_code'] ?? item['course_code'] ?? '').toString().trim().toUpperCase();
-        final subjectName = (item['subject'] ?? item['subject_name'] ?? item['course_name'] ?? code).toString();
-        final attended = int.tryParse((item['class_attended'] ?? item['attended'] ?? item['present'] ?? '0').toString()) ?? 0;
-        final total = int.tryParse((item['total_classes'] ?? item['total'] ?? item['total_class'] ?? '0').toString()) ?? 0;
-        final absent = (total - attended) > 0 ? (total - attended) : 0;
-
-        if (subjectName.isNotEmpty || code.isNotEmpty) {
-          result.add(
-            CourseAttendance(
-              courseId: code.isNotEmpty ? code : subjectName,
-              courseName: subjectName.isNotEmpty ? subjectName : code,
-              requiredPercentage: reqPct,
-              classesAttended: attended,
-              classesOnDutyLeave: 0,
-              classesAbsent: absent,
-            ),
-          );
-        }
-      }
-      return result;
+      return rawSubjects.map((s) {
+        if (s is! Map<String, dynamic>) return null;
+        final sa = EtlabSubjectAttendance.fromJson(s);
+        if (sa.name.isEmpty && sa.code.isEmpty) return null;
+        
+        final absent = (sa.total - sa.attended) > 0 ? (sa.total - sa.attended) : 0;
+        
+        return CourseAttendance(
+          courseId: sa.code.isNotEmpty ? sa.code : sa.name,
+          courseName: sa.name.isNotEmpty ? sa.name : sa.code,
+          requiredPercentage: reqPct,
+          classesAttended: sa.attended,
+          classesOnDutyLeave: 0,
+          classesAbsent: absent,
+        );
+      }).whereType<CourseAttendance>().toList();
     } catch (_) {
       return [];
     }
@@ -356,30 +347,30 @@ class DashboardDataMapper {
 
   static List<TeacherInfo> parseTeachers(Map<String, dynamic>? teachersData) {
     if (teachersData == null) return [];
-
+    
+    final tData = EtlabTeachersData.fromJson(teachersData);
     final List<TeacherInfo> result = [];
 
-    void addFromGroup(List<dynamic>? group, String defaultRole) {
+    void addFromGroup(List<EtlabTeacher>? group, String defaultRole) {
       if (group == null) return;
-      for (var item in group) {
-        final t = item as Map<String, dynamic>;
+      for (var t in group) {
         result.add(
           TeacherInfo(
-            name: t['t_name']?.toString() ?? '',
-            roleOrSubject: (t['t_subject'] == 'hod' || t['t_subject'] == 'staffadvisor')
+            name: t.t_name ?? '',
+            roleOrSubject: (t.t_subject == 'hod' || t.t_subject == 'staffadvisor')
                 ? defaultRole
-                : (t['t_subject']?.toString() ?? defaultRole),
-            email: t['t_email']?.toString() ?? '',
-            phone: t['t_phone']?.toString(),
-            imageUrl: t['image_url']?.toString(),
+                : (t.t_subject ?? defaultRole),
+            email: t.t_email ?? '',
+            phone: t.t_phone,
+            imageUrl: t.image_url,
           ),
         );
       }
     }
 
-    addFromGroup(teachersData['hod'] as List<dynamic>?, 'Head of Department');
-    addFromGroup(teachersData['staffadvisor'] as List<dynamic>?, 'Staff Advisor');
-    addFromGroup(teachersData['sub_teacher'] as List<dynamic>?, 'Subject Teacher');
+    addFromGroup(tData.hod, 'Head of Department');
+    addFromGroup(tData.staffadvisor, 'Staff Advisor');
+    addFromGroup(tData.sub_teacher, 'Subject Teacher');
 
     return result;
   }

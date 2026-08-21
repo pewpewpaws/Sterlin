@@ -64,17 +64,10 @@ class TimetableWidgetProvider : AppWidgetProvider() {
             for (name in prefNames) {
                 val p = context.getSharedPreferences(name, Context.MODE_PRIVATE)
                 
-                // Read maxDays from profile_json if available
                 if (maxDays == 5) {
-                    val profileJsonStr = p.getString("profile_json", null) ?: p.getString("flutter.profile_json", null)
-                    if (!profileJsonStr.isNullOrEmpty()) {
-                        try {
-                            val profObj = org.json.JSONObject(profileJsonStr)
-                            if (profObj.has("timetable")) {
-                                val ttArray = profObj.getJSONArray("timetable")
-                                maxDays = Math.max(5, Math.min(ttArray.length(), 7))
-                            }
-                        } catch (e: Exception) {}
+                    val value = p.all["widget_max_days"] ?: p.all["flutter.widget_max_days"]
+                    if (value is Number) {
+                        maxDays = value.toInt()
                     }
                 }
 
@@ -133,15 +126,9 @@ class TimetableWidgetProvider : AppWidgetProvider() {
         for (name in prefNames) {
             val p = context.getSharedPreferences(name, Context.MODE_PRIVATE)
             if (maxDays == 5) {
-                val profileJsonStr = p.getString("profile_json", null) ?: p.getString("flutter.profile_json", null)
-                if (!profileJsonStr.isNullOrEmpty()) {
-                    try {
-                        val profObj = org.json.JSONObject(profileJsonStr)
-                        if (profObj.has("timetable")) {
-                            val ttArray = profObj.getJSONArray("timetable")
-                            maxDays = Math.max(5, Math.min(ttArray.length(), 7))
-                        }
-                    } catch (e: Exception) {}
+                val value = p.all["widget_max_days"] ?: p.all["flutter.widget_max_days"]
+                if (value is Number) {
+                    maxDays = value.toInt()
                 }
             }
             if (p.contains("widget_selected_day") || p.contains("flutter.widget_selected_day")) {
@@ -257,7 +244,43 @@ class TimetableWidgetProvider : AppWidgetProvider() {
         views.setOnClickPendingIntent(R.id.header_title_pill, clickPendingIntent)
         views.setOnClickPendingIntent(R.id.widget_empty_view, clickPendingIntent)
 
+        // Apply user-chosen accent color to header pills without losing corner radius
+        val accentColor = readAccentColor(context)
+        if (accentColor != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                views.setColorStateList(
+                    R.id.header_title_pill,
+                    "setBackgroundTintList",
+                    android.content.res.ColorStateList.valueOf(accentColor)
+                )
+                views.setColorStateList(
+                    R.id.header_day_pill,
+                    "setBackgroundTintList",
+                    android.content.res.ColorStateList.valueOf(accentColor)
+                )
+            }
+        }
+
         return views
+    }
+
+    /** Read the accent color stored by Flutter's ThemeService / HomeWidgetService.
+     *  Flutter SharedPreferences stores ints as Long on Android — must NOT use getInt(). */
+    private fun readAccentColor(context: Context): Int? {
+        val prefNames = listOf(PREFS_NAME, "FlutterSharedPreferences", "${context.packageName}_preferences")
+        for (name in prefNames) {
+            val p = context.getSharedPreferences(name, Context.MODE_PRIVATE)
+            for (key in listOf("app_theme_widget_accent", "flutter.app_theme_widget_accent")) {
+                val raw = p.all[key] ?: continue
+                val color = when (raw) {
+                    is Int -> raw
+                    is Long -> raw.toInt()
+                    else -> continue
+                }
+                if (color != 0) return color
+            }
+        }
+        return null
     }
 
 }

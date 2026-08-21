@@ -174,17 +174,28 @@ class TimetableViewsFactory(private val context: Context, private val appWidgetI
             )
         }
 
-        val course = item.optString("courseName", "Free")
+        val courseCode = item.optString("courseCode", "")
+        val courseTitle = item.optString("courseTitle", "").ifEmpty {
+            item.optString("courseName", "Free")
+        }
         val timeRoom = item.optString("timeStr", "--")
         val sessionType = item.optString("sessionType", "Lecture")
         val teacher = item.optString("teacherName", "")
         val pct = item.optInt("attendancePct", -1)
         val ratio = item.optString("attendanceRatio", "")
 
-        itemViews.setTextViewText(R.id.item_session_type, sessionType)
-        itemViews.setTextViewText(R.id.item_course, course)
+        val typeAndCode = if (courseCode.isNotEmpty() && sessionType.isNotEmpty()) {
+            "$sessionType · $courseCode"
+        } else if (courseCode.isNotEmpty()) {
+            courseCode
+        } else {
+            sessionType
+        }
 
-        // Combine time + teacher on the same line so subject name (2 lines) doesn't push teacher off-screen.
+        itemViews.setTextViewText(R.id.item_session_type, typeAndCode)
+        itemViews.setTextViewText(R.id.item_course, courseTitle)
+
+        // Combine time + teacher on the same line so subject name doesn't push teacher off-screen.
         // The full item layout keeps R.id.item_teacher hidden and uses the combined string.
         val timeAndTeacher = if (teacher.isNotEmpty()) "$timeRoom · $teacher" else timeRoom
         itemViews.setTextViewText(R.id.item_time_period, timeAndTeacher)
@@ -211,6 +222,12 @@ class TimetableViewsFactory(private val context: Context, private val appWidgetI
         val fillInIntent = Intent()
         itemViews.setOnClickFillInIntent(R.id.widget_item_container, fillInIntent)
 
+        // Tint attendance percentage with user accent color if set
+        val accentColor = readAccentColor()
+        if (accentColor != null && ratio.isNotEmpty() && pct >= 0) {
+            itemViews.setTextColor(R.id.item_attendance_pct, accentColor)
+        }
+
         return itemViews
     }
 
@@ -221,4 +238,27 @@ class TimetableViewsFactory(private val context: Context, private val appWidgetI
     override fun getItemId(position: Int): Long = position.toLong()
 
     override fun hasStableIds(): Boolean = true
+
+    /** Read the accent color stored by Flutter's ThemeService / HomeWidgetService.
+     *  Flutter SharedPreferences stores ints as Long on Android — must NOT use getInt(). */
+    private fun readAccentColor(): Int? {
+        val prefNames = listOf(
+            "HomeWidgetPreferences",
+            "FlutterSharedPreferences",
+            "${context.packageName}_preferences"
+        )
+        for (name in prefNames) {
+            val p = context.getSharedPreferences(name, android.content.Context.MODE_PRIVATE)
+            for (key in listOf("app_theme_widget_accent", "flutter.app_theme_widget_accent")) {
+                val raw = p.all[key] ?: continue
+                val color = when (raw) {
+                    is Int -> raw
+                    is Long -> raw.toInt()
+                    else -> continue
+                }
+                if (color != 0) return color
+            }
+        }
+        return null
+    }
 }

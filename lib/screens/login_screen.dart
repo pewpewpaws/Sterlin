@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/etlab_api_service.dart';
+
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -61,6 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Trigger OS Password Manager save prompt (Google Password Manager / iOS Keychain)
       TextInput.finishAutofillContext();
 
+      if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const DashboardScreen()),
       );

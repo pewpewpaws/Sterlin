@@ -30,8 +30,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
     }
 
-    // Mark as read once they are loaded on the screen
-    await service.markAllAsRead();
+    // We no longer mark them all as read immediately.
+    // The user must manually dismiss them.
   }
 
   @override
@@ -63,31 +63,87 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 final subject = absence['subject'] ?? '';
                 final hour = absence['hour'] ?? '';
 
-                return Card(
-                  elevation: 0,
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: theme.colorScheme.errorContainer,
-                      child: Icon(Icons.warning_amber_rounded, color: theme.colorScheme.onErrorContainer),
-                    ),
-                    title: Text(
-                      'Absence Detected 👻',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4.0),
-                      child: Text(
-                        'Looks like you vanished during $subject on $date (Hour $hour).',
+                return Dismissible(
+                  key: Key(absence['key'] ?? index.toString()),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    color: theme.colorScheme.error,
+                    child: Icon(Icons.delete_outline, color: theme.colorScheme.onError),
+                  ),
+                  onDismissed: (direction) async {
+                    final service = NotificationsService();
+                    await service.markAsRead(absence['key']);
+                    setState(() {
+                      _newAbsences.removeAt(index);
+                    });
+                  },
+                  child: Card(
+                    elevation: 0,
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: theme.colorScheme.outlineVariant.withAlpha(100),
+                        width: 1,
                       ),
                     ),
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AttendanceScreen()),
-                      );
-                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 16,
+                                backgroundColor: theme.colorScheme.errorContainer,
+                                child: Icon(Icons.warning_amber_rounded, color: theme.colorScheme.onErrorContainer, size: 18),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Absence Detected',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.colorScheme.error,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                date,
+                                style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            subject,
+                            style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Period / Hour: $hour',
+                            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                          const SizedBox(height: 12),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FilledButton.tonalIcon(
+                              onPressed: () {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+                                );
+                              },
+                              icon: const Icon(Icons.analytics_outlined, size: 18),
+                              label: const Text('View Attendance'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 );
               },

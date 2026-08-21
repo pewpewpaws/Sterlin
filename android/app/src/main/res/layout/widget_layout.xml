@@ -26,7 +26,11 @@
             android:paddingVertical="5dp"
             android:text="Timetable"
             android:textColor="#FFFFFF"
-            android:textSize="12sp"
+            android:textSize="15sp"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="10sp"
+            android:autoSizeMaxTextSize="15sp"
+            android:autoSizeStepGranularity="1sp"
             android:textStyle="bold" />
 
         <!-- Right Pill: < Tuesday > (Day Switcher) -->
@@ -56,7 +60,11 @@
                 android:paddingHorizontal="4dp"
                 android:text="Tuesday"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp"
+                android:textSize="15sp"
+                android:autoSizeTextType="uniform"
+                android:autoSizeMinTextSize="10sp"
+                android:autoSizeMaxTextSize="15sp"
+                android:autoSizeStepGranularity="1sp"
                 android:textStyle="bold" />
 
             <ImageButton
@@ -98,7 +106,11 @@
             android:gravity="center"
             android:text="Sign in to Sterlin"
             android:textColor="@color/widget_text_primary"
-            android:textSize="16sp"
+            android:textSize="20sp"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="14sp"
+            android:autoSizeMaxTextSize="20sp"
+            android:autoSizeStepGranularity="1sp"
             android:textStyle="bold" />
 
         <TextView
@@ -108,7 +120,11 @@
             android:layout_marginTop="4dp"
             android:text="Tap to open app"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="12sp" />
+            android:textSize="15sp"
+            android:autoSizeTextType="uniform"
+            android:autoSizeMinTextSize="10sp"
+            android:autoSizeMaxTextSize="15sp"
+            android:autoSizeStepGranularity="1sp" />
     </LinearLayout>
 
 </LinearLayout>

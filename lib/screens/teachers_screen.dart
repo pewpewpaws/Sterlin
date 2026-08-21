@@ -39,7 +39,13 @@ class TeachersScreen extends StatelessWidget {
               final teacher = teachers[index];
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: theme.colorScheme.outlineVariant.withAlpha(100),
+                    width: 1,
+                  ),
+                ),
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundImage: (teacher.imageUrl != null && teacher.imageUrl!.startsWith('http'))

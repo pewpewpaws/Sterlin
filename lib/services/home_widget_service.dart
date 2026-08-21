@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/dashboard_data.dart';
-import 'app_logger_service.dart';
 
 class HomeWidgetService {
   static const String _providerName = 'TimetableWidgetProvider';
@@ -104,15 +103,12 @@ class HomeWidgetService {
       await prefs.setString('widget_timetable_days_json', daysJson);
       await prefs.setString('last_updated', lastUpdated);
 
-      if (profileData != null) {
-        await prefs.setString('profile_json', jsonEncode(profileData));
+      int maxDays = 5;
+      if (profileData != null && profileData.containsKey('timetable')) {
+        final tt = profileData['timetable'] as List<dynamic>;
+        maxDays = tt.length.clamp(5, 7);
       }
-      if (attendanceData != null) {
-        await prefs.setString('attendance_json', jsonEncode(attendanceData));
-      }
-      if (teachersData != null) {
-        await prefs.setString('teachers_json', jsonEncode(teachersData));
-      }
+      await prefs.setInt('widget_max_days', maxDays);
 
       if (!kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.android ||
@@ -122,31 +118,20 @@ class HomeWidgetService {
           await HomeWidget.saveWidgetData<String>('timetable_json', timetableJson);
           await HomeWidget.saveWidgetData<String>('widget_timetable_days_json', daysJson);
           await HomeWidget.saveWidgetData<String>('last_updated', lastUpdated);
-          if (profileData != null) {
-            await HomeWidget.saveWidgetData<String>('profile_json', jsonEncode(profileData));
-          }
-          if (attendanceData != null) {
-            await HomeWidget.saveWidgetData<String>('attendance_json', jsonEncode(attendanceData));
-          }
-          if (teachersData != null) {
-            await HomeWidget.saveWidgetData<String>('teachers_json', jsonEncode(teachersData));
-          }
+          await HomeWidget.saveWidgetData<int>('widget_max_days', maxDays);
           await HomeWidget.updateWidget(
             name: _providerName,
             androidName: _providerName,
             qualifiedAndroidName:
                 'com.example.planner.widgets.TimetableWidgetProvider',
           );
-          AppLoggerService().log(
-            'updateHomeScreenWidget(days: ${daysMap.length}, today: ${timetableList.length})',
-            category: 'WIDGET',
-          );
+          debugPrint('[WIDGET] Widget update successful: $_providerName');
         } catch (e) {
-          AppLoggerService().log('updateHomeScreenWidget error: $e', category: 'ERROR');
+          debugPrint('[ERROR] updateHomeScreenWidget error: $e');
         }
       }
     } catch (e) {
-      AppLoggerService().log('updateHomeScreenWidget fatal: $e', category: 'ERROR');
+      debugPrint('[ERROR] updateHomeScreenWidget fatal: $e');
     }
   }
 
@@ -157,9 +142,7 @@ class HomeWidgetService {
       await prefs.remove('widget_timetable_days_json');
       await prefs.remove('current_index');
       await prefs.remove('last_updated');
-      await prefs.remove('profile_json');
-      await prefs.remove('attendance_json');
-      await prefs.remove('teachers_json');
+      await prefs.remove('widget_max_days');
 
       if (!kIsWeb &&
           (defaultTargetPlatform == TargetPlatform.android ||
@@ -168,19 +151,17 @@ class HomeWidgetService {
         await HomeWidget.saveWidgetData<String>('timetable_json', '[]');
         await HomeWidget.saveWidgetData<String>('widget_timetable_days_json', '{}');
         await HomeWidget.saveWidgetData<String>('last_updated', '');
-        await HomeWidget.saveWidgetData<String>('profile_json', '');
-        await HomeWidget.saveWidgetData<String>('attendance_json', '');
-        await HomeWidget.saveWidgetData<String>('teachers_json', '');
+        await HomeWidget.saveWidgetData<int>('widget_max_days', 5);
         await HomeWidget.updateWidget(
           name: _providerName,
           androidName: _providerName,
           qualifiedAndroidName:
               'com.example.planner.widgets.TimetableWidgetProvider',
         );
-        AppLoggerService().log('clearWidgetData() completed', category: 'WIDGET');
+        debugPrint('[WIDGET] clearWidgetData() completed');
       }
     } catch (e) {
-      AppLoggerService().log('clearWidgetData error: $e', category: 'ERROR');
+      debugPrint('[ERROR] clearWidgetData error: $e');
     }
   }
 

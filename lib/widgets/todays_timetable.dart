@@ -227,7 +227,10 @@ class _ClassCard extends StatelessWidget {
         color: cardBg,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: borderBg, width: isCurrent ? 2 : 0),
+          side: BorderSide(
+            color: isCurrent ? borderBg : theme.colorScheme.outlineVariant.withAlpha(100),
+            width: isCurrent ? 2 : 1,
+          ),
         ),
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Container(

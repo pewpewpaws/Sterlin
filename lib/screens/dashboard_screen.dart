@@ -7,7 +7,6 @@ import '../services/notifications_service.dart';
 import '../widgets/todays_timetable.dart';
 import '../widgets/attendance_summary.dart';
 import '../widgets/next_class_card.dart';
-import '../components/skeleton_loader.dart';
 import '../widgets/app_drawer.dart';
 import 'notifications_screen.dart';
 
@@ -77,9 +76,72 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted && EtlabApiService().profileData != null) {
         _refreshData();
         BackgroundService.scheduleNextRefresh();
-        NotificationsService().requestPermission();
+        _checkAndPromptNotificationPermission();
       }
     });
+  }
+
+  Future<void> _checkAndPromptNotificationPermission() async {
+    final notifService = NotificationsService();
+    final hasPrompted = await notifService.hasPromptedPermission();
+    if (!hasPrompted && mounted) {
+      await notifService.setPromptedPermission(true);
+      if (!mounted) return;
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) {
+          final theme = Theme.of(ctx);
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.notifications_active_outlined,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Absent Tracker',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              'StudentPlanner uses notifications to immediately alert you whenever absences or attendance changes are recorded. You can easily turn this on or off anytime in Settings.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await notifService.setNotificationsEnabled(false);
+                },
+                child: const Text('Not Now'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await notifService.setNotificationsEnabled(true);
+                },
+                child: const Text('Enable Notifications'),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
 
   void _loadDataFromApi() {
@@ -272,7 +334,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           title: const Text('Sterlin'),
           centerTitle: false,
         ),
-        body: const DashboardSkeletonLoader(),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 

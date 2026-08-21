@@ -1,10 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/dashboard_data.dart';
-import 'app_logger_service.dart';
 import 'background_service.dart';
 import 'home_widget_service.dart';
 import 'notifications_service.dart';
@@ -46,7 +46,7 @@ class EtlabApiService {
 
   Future<void> setTargetAttendancePct(double pct) async {
     _targetAttendancePct = pct < 0.75 ? 0.75 : pct;
-    AppLoggerService().log('setTargetAttendancePct(pct: $_targetAttendancePct)', category: 'API');
+    debugPrint('[API] setTargetAttendancePct(pct: $_targetAttendancePct)');
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble(_keyTargetAttendancePct, _targetAttendancePct);
@@ -77,9 +77,8 @@ class EtlabApiService {
 
   /// Initialize session from local data storage on app startup.
   Future<bool> initSession() async {
-    AppLoggerService().log('initSession()', category: 'SESSION');
+    debugPrint('[SESSION] initSession()');
     try {
-      await AppLoggerService().init();
       final prefs = await SharedPreferences.getInstance();
       _subdomain = prefs.getString(_keySubdomain) ?? 'sctce';
       _accessToken = await _secureStorage.read(key: _keyAccessToken);
@@ -184,16 +183,13 @@ class EtlabApiService {
       final prefs = await SharedPreferences.getInstance();
       final savedUsername = prefs.getString(_keyUsername);
       if (savedUsername != null && savedUsername.isNotEmpty && savedUsername != username.trim()) {
-        AppLoggerService().log('Different user logging in, purging old data...', category: 'SESSION');
+        debugPrint('[SESSION] Different user logging in, purging old data...');
         await _purgeAllUserData();
       }
     } catch (_) {}
 
     _subdomain = subdomain.trim().isEmpty ? 'sctce' : subdomain.trim();
-    AppLoggerService().log(
-      'login(subdomain: "$_subdomain", username: "${username.trim()}", hostelId: "${hostelId.trim()}")',
-      category: 'API',
-    );
+    debugPrint('[API] login(subdomain: "$_subdomain", username: "${username.trim()}", hostelId: "${hostelId.trim()}")');
     final url = Uri.parse('$baseUrl/app/login');
 
     final payload = {
@@ -261,10 +257,7 @@ class EtlabApiService {
         }
 
         _profileData = data;
-        AppLoggerService().log(
-          'login(username: "${username.trim()}", status: "success")',
-          category: 'API',
-        );
+        debugPrint('[API] login(username: "${username.trim()}", status: "success")');
 
         // Save session token & profile locally
         await _saveSessionData(username: username);
@@ -273,29 +266,20 @@ class EtlabApiService {
         await fetchAllData();
         return true;
       } else {
-        AppLoggerService().log(
-          'login(username: "${username.trim()}", status: "failed")',
-          category: 'API',
-        );
+        debugPrint('[API] login(username: "${username.trim()}", status: "failed")');
         return false;
       }
     } on TimeoutException {
-      AppLoggerService().log(
-        'login(username: "${username.trim()}", status: "timeout")',
-        category: 'ERROR',
-      );
+      debugPrint('[ERROR] login(username: "${username.trim()}", status: "timeout")');
       throw Exception('Connection timed out. Please try again.');
     } catch (e) {
-      AppLoggerService().log(
-        'login(username: "${username.trim()}", status: "error", error: "$e")',
-        category: 'ERROR',
-      );
+      debugPrint('[ERROR] login(username: "${username.trim()}", status: "error", error: "$e")');
       throw Exception('Login failed. Check connection.');
     }
   }
 
   Future<Map<String, dynamic>?> fetchProfile() async {
-    AppLoggerService().log('fetchProfile()', category: 'API');
+    debugPrint('[API] fetchProfile()');
     final url = Uri.parse('$baseUrl/app/profile');
     try {
       final response = await http.post(url, headers: _authHeaders).timeout(const Duration(seconds: 15));
@@ -314,16 +298,12 @@ class EtlabApiService {
   }
 
   Future<Map<String, dynamic>?> fetchAttendanceBySubject({String? semester}) async {
-    AppLoggerService().log('fetchAttendanceBySubject(semester: "${semester ?? ""}")', category: 'API');
+    debugPrint('[API] fetchAttendanceBySubject(semester: "${semester ?? ""}")');
     final url = Uri.parse('$baseUrl/app/attendancebysubject');
     try {
-      final bodyMap = <String, String>{};
-      if (semester != null && semester.isNotEmpty) {
-        bodyMap['semester'] = semester;
-        bodyMap['sem_id'] = semester;
-        bodyMap['semester_id'] = semester;
-        bodyMap['sem'] = semester;
-      }
+      final bodyMap = (semester != null && semester.isNotEmpty)
+          ? {'sem_id': semester, 'semester': semester}
+          : <String, String>{};
       final response = await http.post(
         url,
         headers: _authHeaders,
@@ -346,7 +326,7 @@ class EtlabApiService {
   }
 
   Future<Map<String, dynamic>?> fetchTeachers() async {
-    AppLoggerService().log('fetchTeachers()', category: 'API');
+    debugPrint('[API] fetchTeachers()');
     final url = Uri.parse('$baseUrl/app/teachers');
     try {
       final response = await http.post(url, headers: _authHeaders).timeout(const Duration(seconds: 15));
@@ -365,7 +345,7 @@ class EtlabApiService {
   }
 
   Future<List<dynamic>?> fetchSemesterList() async {
-    AppLoggerService().log('fetchSemesterList()', category: 'API');
+    debugPrint('[API] fetchSemesterList()');
     final url = Uri.parse('$baseUrl/app/semesterlist');
     try {
       final response = await http.post(url, headers: _authHeaders).timeout(const Duration(seconds: 15));
@@ -395,10 +375,7 @@ class EtlabApiService {
     required int year,
     String? semester,
   }) async {
-    AppLoggerService().log(
-      'fetchAttendanceByDayPeriod(month: $month, year: $year, semester: "${semester ?? ""}")',
-      category: 'API',
-    );
+    debugPrint('[API] fetchAttendanceByDayPeriod(month: $month, year: $year, semester: "${semester ?? ""}")');
     final url = Uri.parse('$baseUrl/app/attendancebydayperiod');
     final sem = semester ?? _profileData?['sem_id']?.toString() ?? '5';
     final payload = {
@@ -466,10 +443,7 @@ class EtlabApiService {
   }
 
   Future<Map<String, dynamic>?> getCachedMonthAttendance(int month, int year, {String? semester}) async {
-    AppLoggerService().log(
-      'getCachedMonthAttendance(month: $month, year: $year, semester: "${semester ?? ""}")',
-      category: 'CACHE',
-    );
+    debugPrint('[CACHE] getCachedMonthAttendance(month: $month, year: $year, semester: "${semester ?? ""}")');
     final mem = getMemoryCachedMonth(month, year, semester: semester);
     if (mem != null) return mem;
 
@@ -504,10 +478,7 @@ class EtlabApiService {
     final semKey = (semester != null && semester.isNotEmpty)
         ? semester
         : (_profileData?['sem_id']?.toString() ?? 'default');
-    AppLoggerService().log(
-      'cacheMonthAttendance(month: $month, year: $year, semester: "$semKey")',
-      category: 'CACHE',
-    );
+    debugPrint('[CACHE] cacheMonthAttendance(month: $month, year: $year, semester: "$semKey")');
     try {
       final prefs = await SharedPreferences.getInstance();
       final monthKey = '${year}_${month}_$semKey';
@@ -539,7 +510,7 @@ class EtlabApiService {
   }
 
   Future<Map<String, Map<String, dynamic>>> getAllArchivedCalendarData() async {
-    AppLoggerService().log('getAllArchivedCalendarData()', category: 'CACHE');
+    debugPrint('[CACHE] getAllArchivedCalendarData()');
     final Map<String, Map<String, dynamic>> allData = {};
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -563,7 +534,7 @@ class EtlabApiService {
   }
 
   Future<Map<String, dynamic>?> getCachedSemesterAttendance(String semId) async {
-    AppLoggerService().log('getCachedSemesterAttendance(semId: "$semId")', category: 'CACHE');
+    debugPrint('[CACHE] getCachedSemesterAttendance(semId: "$semId")');
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = 'etlab_sem_attendance_$semId';
@@ -576,7 +547,7 @@ class EtlabApiService {
   }
 
   Future<void> cacheSemesterAttendance(String semId, Map<String, dynamic> data) async {
-    AppLoggerService().log('cacheSemesterAttendance(semId: "$semId")', category: 'CACHE');
+    debugPrint('[CACHE] cacheSemesterAttendance(semId: "$semId")');
     try {
       final prefs = await SharedPreferences.getInstance();
       final key = 'etlab_sem_attendance_$semId';
@@ -585,7 +556,7 @@ class EtlabApiService {
   }
 
   Future<void> fetchAllData() async {
-    AppLoggerService().log('fetchAllData()', category: 'API');
+    debugPrint('[API] fetchAllData()');
 
     final now = DateTime.now();
     int currentMonth = now.month;
@@ -672,12 +643,11 @@ class EtlabApiService {
 
       await NotificationsService().clearNotificationsData();
       await HomeWidgetService.clearWidgetData();
-      AppLoggerService().clearLogs();
     } catch (_) {}
   }
 
   Future<void> logout() async {
-    AppLoggerService().log('logout()', category: 'SESSION');
+    debugPrint('[SESSION] logout()');
     _accessToken = null;
     _profileData = null;
     _attendanceData = null;

@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/app_logger_service.dart';
 import '../services/etlab_api_service.dart';
+import '../services/home_widget_service.dart';
+import '../services/notifications_service.dart';
+import '../services/theme_service.dart';
+import '../models/dashboard_data.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/attendance_summary.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,7 +19,24 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _filterQuery = '';
-  double? _sliderTargetPct;
+  bool? _notificationsEnabled;
+  bool _isSyncing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationSettings();
+    AppLoggerService().loadLogs();
+  }
+
+  Future<void> _loadNotificationSettings() async {
+    final enabled = await NotificationsService().areNotificationsEnabled();
+    if (mounted) {
+      setState(() {
+        _notificationsEnabled = enabled;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -51,17 +73,83 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return theme.colorScheme.error;
       case 'CACHE':
         return Colors.orange;
+      case 'SYSTEM':
+        return Colors.green;
       default:
         return theme.colorScheme.primary;
     }
   }
 
+  void _showAddCustomLogDialog() {
+    final textController = TextEditingController();
+    String selectedCategory = 'DEBUG';
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add Debug Log Entry'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedCategory,
+                    decoration: const InputDecoration(labelText: 'Category'),
+                    items: const [
+                      DropdownMenuItem(value: 'DEBUG', child: Text('DEBUG')),
+                      DropdownMenuItem(value: 'API', child: Text('API')),
+                      DropdownMenuItem(value: 'BG_TASK', child: Text('BG_TASK')),
+                      DropdownMenuItem(value: 'WIDGET', child: Text('WIDGET')),
+                      DropdownMenuItem(value: 'NOTIF', child: Text('NOTIF')),
+                      DropdownMenuItem(value: 'SYSTEM', child: Text('SYSTEM')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() => selectedCategory = val);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: textController,
+                    decoration: const InputDecoration(
+                      labelText: 'Log Message',
+                      hintText: 'Enter test message...',
+                    ),
+                    autofocus: true,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final msg = textController.text.trim();
+                    if (msg.isNotEmpty) {
+                      AppLoggerService().log(msg, category: selectedCategory);
+                    }
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final logger = AppLoggerService();
     final api = EtlabApiService();
-    final currentTarget = _sliderTargetPct ?? api.targetAttendancePct;
+    final logger = AppLoggerService();
 
     return Scaffold(
       appBar: AppBar(
@@ -77,6 +165,262 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Appearance Section
+                Text(
+                  'APPEARANCE',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  elevation: 0,
+                  color: theme.colorScheme.surfaceContainerLow,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(100)),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Column(
+                      children: [
+                        ListTile(
+                          title: const Text('Theme Mode', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Light, Dark, or match System.'),
+                          trailing: SegmentedButton<ThemeMode>(
+                            segments: const [
+                              ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto)),
+                              ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode)),
+                              ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode)),
+                            ],
+                            selected: {ThemeService().themeMode},
+                            onSelectionChanged: (set) {
+                              ThemeService().setThemeMode(set.first, theme.brightness);
+                            },
+                            showSelectedIcon: false,
+                            style: SegmentedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                            ),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          title: const Text('Accent Color', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(
+                            ThemeService().useDynamic
+                                ? 'System Dynamic (Matches Wallpaper)'
+                                : 'Custom Color',
+                          ),
+                          trailing: ThemeService().useDynamic
+                              ? Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.auto_awesome,
+                                        size: 14,
+                                        color: theme.colorScheme.onPrimaryContainer,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Dynamic',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: theme.colorScheme.onPrimaryContainer,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: ThemeService().seedColor,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: theme.colorScheme.outlineVariant, width: 1.5),
+                                  ),
+                                ),
+                          onTap: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                              ),
+                              builder: (sheetContext) {
+                                final isDynamic = ThemeService().useDynamic;
+                                final currentSeed = ThemeService().seedColor;
+
+                                return SafeArea(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Center(
+                                          child: Container(
+                                            width: 36,
+                                            height: 4,
+                                            margin: const EdgeInsets.only(bottom: 16),
+                                            decoration: BoxDecoration(
+                                              color: theme.colorScheme.onSurfaceVariant.withAlpha(80),
+                                              borderRadius: BorderRadius.circular(2),
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          'Accent Color',
+                                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                        ),
+                                        Text(
+                                          'Match your phone wallpaper or choose a custom palette.',
+                                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                                        ),
+                                        const SizedBox(height: 16),
+
+                                        // Dynamic System Option
+                                        InkWell(
+                                          borderRadius: BorderRadius.circular(12),
+                                          onTap: () {
+                                            ThemeService().setUseDynamic(true);
+                                            Navigator.pop(sheetContext);
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(
+                                                color: isDynamic ? theme.colorScheme.primary : theme.colorScheme.outlineVariant.withAlpha(120),
+                                                width: isDynamic ? 2 : 1,
+                                              ),
+                                              color: isDynamic ? theme.colorScheme.primaryContainer.withAlpha(60) : theme.colorScheme.surfaceContainerLow,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  width: 38,
+                                                  height: 38,
+                                                  decoration: BoxDecoration(
+                                                    color: theme.colorScheme.primaryContainer,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.auto_awesome,
+                                                    color: theme.colorScheme.onPrimaryContainer,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(
+                                                        'System Dynamic (Material You)',
+                                                        style: TextStyle(
+                                                          fontWeight: FontWeight.bold,
+                                                          color: theme.colorScheme.onSurface,
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        "Uses your phone's wallpaper accent color",
+                                                        style: theme.textTheme.bodySmall?.copyWith(
+                                                          color: theme.colorScheme.onSurfaceVariant,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                if (isDynamic)
+                                                  Icon(Icons.check_circle, color: theme.colorScheme.primary),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'PRESET COLORS',
+                                          style: theme.textTheme.labelSmall?.copyWith(
+                                            color: theme.colorScheme.onSurfaceVariant,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1.0,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+
+                                        Wrap(
+                                          spacing: 12,
+                                          runSpacing: 12,
+                                          alignment: WrapAlignment.center,
+                                          children: ThemeService.presetColors.entries.map((e) {
+                                            final isSelected = !isDynamic && e.value.toARGB32() == currentSeed.toARGB32();
+                                            return GestureDetector(
+                                              onTap: () {
+                                                ThemeService().setSeedColor(e.value, theme.brightness);
+                                                Navigator.pop(sheetContext);
+                                              },
+                                              child: SizedBox(
+                                                width: 58,
+                                                child: Column(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Container(
+                                                      width: 38,
+                                                      height: 38,
+                                                      decoration: BoxDecoration(
+                                                        color: e.value,
+                                                        shape: BoxShape.circle,
+                                                        border: isSelected
+                                                            ? Border.all(color: theme.colorScheme.onSurface, width: 3)
+                                                            : Border.all(color: Colors.black12, width: 1),
+                                                      ),
+                                                      child: isSelected
+                                                          ? const Icon(Icons.check, size: 18, color: Colors.white)
+                                                          : null,
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      e.key[0].toUpperCase() + e.key.substring(1),
+                                                      style: theme.textTheme.labelSmall?.copyWith(
+                                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                      ),
+                                                      textAlign: TextAlign.center,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
                 // Preferences Section
                 Text(
                   'PREFERENCES',
@@ -100,45 +444,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Target Attendance',
-                              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        if (_notificationsEnabled != null) ...[
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Enable Notifications', style: TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Get notified when new absences are posted.'),
+                            value: _notificationsEnabled!,
+                            onChanged: (val) async {
+                              setState(() {
+                                _notificationsEnabled = val;
+                              });
+                              await NotificationsService().setNotificationsEnabled(val);
+                            },
+                          ),
+                          const Divider(),
+                        ],
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Target Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Minimum threshold for safe skips and recovery classes.'),
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primaryContainer,
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            Text(
-                              '${(currentTarget * 100).round()}%',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: theme.colorScheme.primary,
+                            child: Text(
+                              '${(api.targetAttendancePct * 100).round()}%',
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onPrimaryContainer,
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Minimum threshold used to calculate safe skips and recovery classes.',
-                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                        ),
-                        Slider(
-                          value: currentTarget.clamp(0.75, 1.0),
-                          min: 0.75,
-                          max: 1.0,
-                          divisions: 25,
-                          label: '${(currentTarget * 100).round()}%',
-                          onChanged: (val) {
-                            setState(() {
-                              _sliderTargetPct = val;
-                            });
-                          },
-                          onChangeEnd: (val) async {
-                            await api.setTargetAttendancePct(val);
-                            if (mounted) {
-                              setState(() {
-                                _sliderTargetPct = null;
-                              });
-                            }
+                          ),
+                          onTap: () {
+                            AttendanceSummaryWidget.showTargetDialog(
+                              context,
+                              onTargetChanged: () {
+                                if (mounted) {
+                                  setState(() {});
+                                }
+                              },
+                            );
                           },
                         ),
                       ],
@@ -148,12 +495,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 const SizedBox(height: 20),
 
-                // Function Execution & Background Logs
+                // Function Execution & Background Logs (Debug Panel)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'FUNCTION & BACKGROUND LOGS',
+                      'DEBUG & DEVELOPER LOGS',
                       style: theme.textTheme.labelMedium?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.bold,
@@ -178,7 +525,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                 Card(
                   elevation: 0,
-                  color: theme.colorScheme.surfaceContainer,
+                  color: theme.colorScheme.surfaceContainerLow,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(100)),
@@ -215,6 +562,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
+                                      icon: const Icon(Icons.add_comment_outlined, size: 20),
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.all(6),
+                                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                      tooltip: 'Add custom log',
+                                      onPressed: _showAddCustomLogDialog,
+                                    ),
+                                    IconButton(
                                       icon: const Icon(Icons.copy_outlined, size: 20),
                                       visualDensity: VisualDensity.compact,
                                       padding: const EdgeInsets.all(6),
@@ -246,11 +601,94 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
+
+                        // Quick action buttons for developer testing
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              icon: _isSyncing
+                                  ? const SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.sync, size: 16),
+                              label: const Text('Sync All Data'),
+                              style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              ),
+                              onPressed: _isSyncing
+                                  ? null
+                                  : () async {
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      setState(() => _isSyncing = true);
+                                      logger.log('Manual sync triggered from Settings', category: 'API');
+                                      try {
+                                        await api.fetchAllData();
+                                        logger.log('Manual sync completed successfully', category: 'API');
+                                        if (!mounted) return;
+                                        messenger.showSnackBar(
+                                          const SnackBar(content: Text('Data synced successfully!')),
+                                        );
+                                      } catch (e) {
+                                        logger.log('Manual sync failed: $e', category: 'ERROR');
+                                      } finally {
+                                        if (mounted) {
+                                          setState(() => _isSyncing = false);
+                                        }
+                                      }
+                                    },
+                            ),
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.widgets_outlined, size: 16),
+                              label: const Text('Refresh Widget'),
+                              style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              ),
+                              onPressed: () async {
+                                final messenger = ScaffoldMessenger.of(context);
+                                logger.log('Triggering manual widget update...', category: 'WIDGET');
+                                try {
+                                  final timetable = DashboardDataMapper.parseTimetableFromProfile(
+                                    api.profileData,
+                                    subjectsData: api.attendanceData,
+                                    teachersData: api.teachersData,
+                                  );
+                                  final attendance = DashboardDataMapper.parseAttendanceFromSubjects(
+                                    api.attendanceData ?? api.profileData,
+                                  );
+                                  await HomeWidgetService.updateHomeScreenWidget(
+                                    timetable: timetable,
+                                    attendance: attendance,
+                                    profileData: api.profileData,
+                                    attendanceData: api.attendanceData,
+                                    teachersData: api.teachersData,
+                                  );
+                                  logger.log('Widget updated successfully', category: 'WIDGET');
+                                  if (!mounted) return;
+                                  messenger.showSnackBar(
+                                    const SnackBar(content: Text('Widget refreshed!')),
+                                  );
+                                } catch (e) {
+                                  logger.log('Widget update failed: $e', category: 'ERROR');
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        // Search Filter Box
                         TextField(
                           controller: _searchController,
                           decoration: InputDecoration(
-                            hintText: 'Filter logs (e.g. BG_TASK, WIDGET, API)...',
+                            hintText: 'Filter logs (e.g. API, BG_TASK, WIDGET)...',
                             prefixIcon: const Icon(Icons.search, size: 20),
                             suffixIcon: _filterQuery.isNotEmpty
                                 ? IconButton(
@@ -276,6 +714,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           },
                         ),
                         const SizedBox(height: 12),
+
+                        // Logs List
                         ValueListenableBuilder<List<LogEntry>>(
                           valueListenable: logger.logsNotifier,
                           builder: (context, currentLogs, _) {
@@ -307,7 +747,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             }
 
                             return Container(
-                              height: 340,
+                              height: 320,
                               decoration: BoxDecoration(
                                 color: theme.colorScheme.surfaceContainerHighest.withAlpha(80),
                                 borderRadius: BorderRadius.circular(8),

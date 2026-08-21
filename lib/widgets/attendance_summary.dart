@@ -14,16 +14,14 @@ class AttendanceSummaryWidget extends StatefulWidget {
     this.onTargetChanged,
   });
 
-  @override
-  State<AttendanceSummaryWidget> createState() => _AttendanceSummaryWidgetState();
-}
+  static Future<void> showTargetDialog(
+    BuildContext context, {
+    VoidCallback? onTargetChanged,
+  }) async {
+    int currentIntPct = (EtlabApiService().targetAttendancePct * 100).round().clamp(75, 95);
+    final presets = [75, 80, 85, 90, 95];
 
-class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
-  void _openTargetDialog() {
-    double currentPct = EtlabApiService().targetAttendancePct.clamp(0.75, 0.95);
-    final presets = [0.75, 0.80, 0.85, 0.90, 0.95];
-
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -59,7 +57,7 @@ class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
                   const SizedBox(height: 16),
                   Center(
                     child: Text(
-                      '${(currentPct * 100).round()}%',
+                      '$currentIntPct%',
                       style: theme.textTheme.headlineMedium?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.bold,
@@ -67,45 +65,47 @@ class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
                     ),
                   ),
                   Slider(
-                    value: currentPct,
-                    min: 0.75,
-                    max: 0.95,
+                    value: currentIntPct.toDouble(),
+                    min: 75,
+                    max: 95,
                     divisions: 20,
-                    label: '${(currentPct * 100).round()}%',
+                    label: '$currentIntPct%',
                     onChanged: (val) {
                       setModalState(() {
-                        currentPct = val;
+                        currentIntPct = val.round();
                       });
                     },
                   ),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: presets.map((p) {
-                      final isSelected = (currentPct * 100).round() == (p * 100).round();
-                      return FilterChip(
-                        selected: isSelected,
-                        label: Text('${(p * 100).round()}%'),
-                        onSelected: (_) {
-                          setModalState(() {
-                            currentPct = p;
-                          });
-                        },
-                      );
-                    }).toList(),
+                  Center(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      children: presets.map((p) {
+                        final isSelected = currentIntPct == p;
+                        return FilterChip(
+                          selected: isSelected,
+                          label: Text('$p%'),
+                          onSelected: (_) {
+                            setModalState(() {
+                              currentIntPct = p;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
                       onPressed: () async {
-                        await EtlabApiService().setTargetAttendancePct(currentPct);
-                        if (mounted && ctx.mounted) {
+                        final double cleanPct = currentIntPct / 100.0;
+                        await EtlabApiService().setTargetAttendancePct(cleanPct);
+                        if (ctx.mounted) {
                           Navigator.pop(ctx);
-                          setState(() {});
-                          widget.onTargetChanged?.call();
+                          onTargetChanged?.call();
                         }
                       },
                       child: const Text('Save Target'),
@@ -116,6 +116,23 @@ class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
             );
           },
         );
+      },
+    );
+  }
+
+  @override
+  State<AttendanceSummaryWidget> createState() => _AttendanceSummaryWidgetState();
+}
+
+class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
+  void _openTargetDialog() {
+    AttendanceSummaryWidget.showTargetDialog(
+      context,
+      onTargetChanged: () {
+        if (mounted) {
+          setState(() {});
+          widget.onTargetChanged?.call();
+        }
       },
     );
   }
@@ -206,11 +223,25 @@ class _AttendanceCard extends StatelessWidget {
 
     final isDark = theme.brightness == Brightness.dark;
     final isSafe = pct >= attendance.requiredPercentage;
-    final color = isSafe
-        ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D))
-        : (isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626));
-    final statusIcon = isSafe ? Icons.check_circle_rounded : Icons.warning_amber_rounded;
-    final statusText = isSafe ? "SAFE" : "CRITICAL";
+    final isOnBoundary = attendance.isOnBoundary(dutyLeaveCountsAsPresent: dutyLeaveCountsAsPresent);
+
+    final Color color;
+    final IconData statusIcon;
+    final String statusText;
+
+    if (!isSafe) {
+      color = isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
+      statusIcon = Icons.warning_amber_rounded;
+      statusText = "CRITICAL";
+    } else if (isOnBoundary) {
+      color = isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706);
+      statusIcon = Icons.warning_amber_rounded;
+      statusText = "BOUNDARY";
+    } else {
+      color = isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D);
+      statusIcon = Icons.check_circle_rounded;
+      statusText = "SAFE";
+    }
 
     final total = dutyLeaveCountsAsPresent
         ? attendance.classesAttended + attendance.classesOnDutyLeave + attendance.classesAbsent
@@ -226,6 +257,10 @@ class _AttendanceCard extends StatelessWidget {
       color: theme.colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withAlpha(100),
+          width: 1,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'etlab_api_service.dart';
-import 'app_logger_service.dart';
+import 'package:flutter/foundation.dart';
 
 class NotificationsService {
   static final NotificationsService _instance = NotificationsService._internal();
@@ -16,6 +16,10 @@ class NotificationsService {
   static const String _keyBaselineData = 'etlab_notifications_baseline';
   // Storage key for absences that have already triggered a notification
   static const String _keyNotifiedData = 'etlab_notifications_notified';
+  // Storage key for user notification enabled toggle
+  static const String _keyNotificationsEnabled = 'etlab_notifications_enabled';
+  // Storage key for tracking if permission prompt dialog was shown
+  static const String _keyHasPromptedPermission = 'etlab_notifications_has_prompted';
 
   Future<void> init() async {
     if (_initialized) return;
@@ -27,8 +31,32 @@ class NotificationsService {
       );
       _initialized = true;
     } catch (e) {
-      AppLoggerService().log('NotificationsService init failed: $e', category: 'ERROR');
+      debugPrint('[ERROR] NotificationsService init failed: $e');
     }
+  }
+
+  Future<bool> areNotificationsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyNotificationsEnabled) ?? true;
+  }
+
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyNotificationsEnabled, enabled);
+    if (enabled) {
+      await requestPermission();
+    }
+    debugPrint('[NOTIF] setNotificationsEnabled: $enabled');
+  }
+
+  Future<bool> hasPromptedPermission() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyHasPromptedPermission) ?? false;
+  }
+
+  Future<void> setPromptedPermission(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyHasPromptedPermission, value);
   }
 
   Future<bool> requestPermission() async {
@@ -48,20 +76,22 @@ class NotificationsService {
 
       return (grantedAndroid ?? true) && (grantedIos ?? true);
     } catch (e) {
-      AppLoggerService().log('requestPermission error: $e', category: 'ERROR');
+      debugPrint('[ERROR] requestPermission error: $e');
       return false;
     }
   }
 
   Future<void> showLocalNotification(String title, String body) async {
+    if (!await areNotificationsEnabled()) return;
     await init();
     if (!_initialized) return;
-    const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+    final AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
       'absent_tracker_channel', 'Absent Tracker',
       importance: Importance.max,
       priority: Priority.high,
+      styleInformation: BigTextStyleInformation(body),
     );
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
+    final NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
     
     try {
       await _flutterLocalNotificationsPlugin.show(
@@ -71,7 +101,7 @@ class NotificationsService {
         notificationDetails: platformChannelSpecifics,
       );
     } catch (e) {
-      AppLoggerService().log('showLocalNotification failed: $e', category: 'ERROR');
+      debugPrint('[ERROR] showLocalNotification failed: $e');
     }
   }
 
@@ -136,8 +166,8 @@ class NotificationsService {
         
         // Creative absent tracker notification
         await showLocalNotification(
-          'Absence Detected 👻',
-          'Looks like you vanished during $subject on $date (Hour $hour).',
+          '🚨 Absence Detected',
+          'You were marked absent for $subject\nDate: $date\nPeriod: Hour $hour',
         );
 
         notified[key] = true;
@@ -149,7 +179,7 @@ class NotificationsService {
       }
       // Note: We don't mark them as read here. They stay "new" until the user views the Notifications screen.
     } catch (e) {
-      AppLoggerService().log('runDiffAndNotify error: $e', category: 'NOTIF');
+      debugPrint('[NOTIF] runDiffAndNotify error: $e');
     }
   }
 
@@ -185,9 +215,9 @@ class NotificationsService {
 
       await prefs.setString(_keyNotifiedData, jsonEncode(notified));
       await prefs.setString(_keyBaselineData, jsonEncode(baseline));
-      AppLoggerService().log('Seeded month baseline for first-time month load', category: 'NOTIF');
+      debugPrint('[NOTIF] Seeded month baseline for first-time month load');
     } catch (e) {
-      AppLoggerService().log('seedMonthBaseline error: $e', category: 'NOTIF');
+      debugPrint('[NOTIF] seedMonthBaseline error: $e');
     }
   }
 
@@ -205,7 +235,22 @@ class NotificationsService {
       
       await prefs.setString(_keyBaselineData, jsonEncode(baseline));
     } catch (e) {
-      AppLoggerService().log('markAllAsRead error: $e', category: 'NOTIF');
+      debugPrint('[NOTIF] markAllAsRead error: $e');
+    }
+  }
+
+  /// Called when the user manually dismisses a notification.
+  Future<void> markAsRead(String key) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? baselineJson = prefs.getString(_keyBaselineData);
+      final Map<String, dynamic> baseline = baselineJson != null ? jsonDecode(baselineJson) : {};
+
+      baseline[key] = true;
+      
+      await prefs.setString(_keyBaselineData, jsonEncode(baseline));
+    } catch (e) {
+      debugPrint('[NOTIF] markAsRead error: $e');
     }
   }
 
@@ -215,9 +260,9 @@ class NotificationsService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_keyBaselineData);
       await prefs.remove(_keyNotifiedData);
-      AppLoggerService().log('Cleared all notification baselines', category: 'NOTIF');
+      debugPrint('[NOTIF] Cleared all notification baselines');
     } catch (e) {
-      AppLoggerService().log('clearNotificationsData error: $e', category: 'NOTIF');
+      debugPrint('[NOTIF] clearNotificationsData error: $e');
     }
   }
 }
