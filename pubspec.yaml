@@ -39,6 +39,7 @@ dependencies:
   workmanager: ^0.10.7
   flutter_secure_storage: ^10.3.1
   dynamic_color: ^1.7.1
+  google_fonts: ^6.2.1
   dio: ^5.11.0
   dio_cache_interceptor: ^3.5.1
   dio_cache_interceptor_file_store: ^1.2.3

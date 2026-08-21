@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../services/etlab_api_service.dart';
 import '../widgets/attendance_summary.dart';
-import '../widgets/app_drawer.dart';
+import 'notifications_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
-  const AttendanceScreen({super.key});
+  final bool isTabMode;
+  const AttendanceScreen({super.key, this.isTabMode = false});
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
@@ -298,9 +299,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        drawer: const AppDrawer(currentRoute: '/attendance'),
         appBar: AppBar(
           title: const Text('Overall Attendance'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              tooltip: 'Notifications',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                );
+              },
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'By Subject'),
@@ -317,7 +329,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 // Tab 1: Subjectwise Attendance
                 _buildSubjectwiseTab(theme),
                 // Tab 2: Dynamic Attendance Calendar View
-                const _CalendarAttendanceView(),
+                _CalendarAttendanceView(isTabMode: widget.isTabMode),
               ],
             ),
           ),
@@ -328,7 +340,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 }
 
 class _CalendarAttendanceView extends StatefulWidget {
-  const _CalendarAttendanceView();
+  final bool isTabMode;
+  const _CalendarAttendanceView({this.isTabMode = false});
 
   @override
   State<_CalendarAttendanceView> createState() =>

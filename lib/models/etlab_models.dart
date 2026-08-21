@@ -16,7 +16,7 @@ Object? _readTotal(Map json, String key) =>
 
 int _parseInt(dynamic value) => int.tryParse(value.toString()) ?? 0;
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class EtlabSubjectAttendance {
   @JsonKey(readValue: _readSubjectCode)
   final String code;
@@ -40,16 +40,18 @@ class EtlabSubjectAttendance {
   factory EtlabSubjectAttendance.fromJson(Map<String, dynamic> json) => _$EtlabSubjectAttendanceFromJson(json);
 }
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class EtlabProfile {
   final List<List<EtlabTimetableItem>>? timetable;
-  final dynamic sem_id;
   
-  EtlabProfile(this.timetable, this.sem_id);
+  @JsonKey(name: 'sem_id')
+  final dynamic semId;
+  
+  EtlabProfile(this.timetable, this.semId);
   factory EtlabProfile.fromJson(Map<String, dynamic> json) => _$EtlabProfileFromJson(json);
 }
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class EtlabTimetableItem {
   final String? subject;
   final String? type;
@@ -60,24 +62,35 @@ class EtlabTimetableItem {
   factory EtlabTimetableItem.fromJson(Map<String, dynamic> json) => _$EtlabTimetableItemFromJson(json);
 }
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class EtlabTeachersData {
   final List<EtlabTeacher>? hod;
   final List<EtlabTeacher>? staffadvisor;
-  final List<EtlabTeacher>? sub_teacher;
   
-  EtlabTeachersData(this.hod, this.staffadvisor, this.sub_teacher);
+  @JsonKey(name: 'sub_teacher')
+  final List<EtlabTeacher>? subTeacher;
+  
+  EtlabTeachersData(this.hod, this.staffadvisor, this.subTeacher);
   factory EtlabTeachersData.fromJson(Map<String, dynamic> json) => _$EtlabTeachersDataFromJson(json);
 }
 
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class EtlabTeacher {
-  final String? t_name;
-  final String? t_subject;
-  final String? t_email;
-  final String? t_phone;
-  final String? image_url;
+  @JsonKey(name: 't_name')
+  final String? name;
   
-  EtlabTeacher(this.t_name, this.t_subject, this.t_email, this.t_phone, this.image_url);
+  @JsonKey(name: 't_subject')
+  final String? subject;
+  
+  @JsonKey(name: 't_email')
+  final String? email;
+  
+  @JsonKey(name: 't_phone')
+  final String? phone;
+  
+  @JsonKey(name: 'image_url')
+  final String? imageUrl;
+  
+  EtlabTeacher(this.name, this.subject, this.email, this.phone, this.imageUrl);
   factory EtlabTeacher.fromJson(Map<String, dynamic> json) => _$EtlabTeacherFromJson(json);
 }

@@ -6,11 +6,12 @@ import '../services/home_widget_service.dart';
 import '../services/notifications_service.dart';
 import '../services/theme_service.dart';
 import '../models/dashboard_data.dart';
-import '../widgets/app_drawer.dart';
 import '../widgets/attendance_summary.dart';
+import 'notifications_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  final bool isTabMode;
+  const SettingsScreen({super.key, this.isTabMode = false});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -154,14 +155,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notifications',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
+            },
+          ),
+        ],
       ),
-      drawer: const AppDrawer(currentRoute: '/settings'),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 640),
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -455,6 +467,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 _notificationsEnabled = val;
                               });
                               await NotificationsService().setNotificationsEnabled(val);
+                            },
+                          ),
+                          const Divider(),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text('Improve Background Sync', style: TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: const Text('Allow the app to bypass battery optimization so widgets and notifications update reliably.'),
+                            trailing: const Icon(Icons.bolt),
+                            onTap: () async {
+                              try {
+                                const platform = MethodChannel('com.example.planner/battery');
+                                final bool result = await platform.invokeMethod('requestIgnoreBatteryOptimizations');
+                                if (!context.mounted) return;
+                                if (result) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Requested battery optimization ignore!')),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Battery optimization is already disabled or unsupported.')),
+                                  );
+                                }
+                              } catch (e) {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Error: $e')),
+                                  );
+                                }
+                              }
                             },
                           ),
                           const Divider(),

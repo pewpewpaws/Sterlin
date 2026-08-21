@@ -356,13 +356,13 @@ class DashboardDataMapper {
       for (var t in group) {
         result.add(
           TeacherInfo(
-            name: t.t_name ?? '',
-            roleOrSubject: (t.t_subject == 'hod' || t.t_subject == 'staffadvisor')
+            name: t.name ?? '',
+            roleOrSubject: (t.subject == 'hod' || t.subject == 'staffadvisor')
                 ? defaultRole
-                : (t.t_subject ?? defaultRole),
-            email: t.t_email ?? '',
-            phone: t.t_phone,
-            imageUrl: t.image_url,
+                : (t.subject ?? defaultRole),
+            email: t.email ?? '',
+            phone: t.phone,
+            imageUrl: t.imageUrl,
           ),
         );
       }
@@ -370,7 +370,7 @@ class DashboardDataMapper {
 
     addFromGroup(tData.hod, 'Head of Department');
     addFromGroup(tData.staffadvisor, 'Staff Advisor');
-    addFromGroup(tData.sub_teacher, 'Subject Teacher');
+    addFromGroup(tData.subTeacher, 'Subject Teacher');
 
     return result;
   }

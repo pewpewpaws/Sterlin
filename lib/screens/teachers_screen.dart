@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../services/etlab_api_service.dart';
+import 'notifications_screen.dart';
 
 class TeachersScreen extends StatelessWidget {
-  const TeachersScreen({super.key});
+  final bool isTabMode;
+  const TeachersScreen({super.key, this.isTabMode = false});
 
   @override
   Widget build(BuildContext context) {
@@ -13,6 +15,18 @@ class TeachersScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Faculty & Teachers'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notifications',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: FutureBuilder<Map<String, dynamic>?>(
         future: teachersData,
@@ -33,7 +47,7 @@ class TeachersScreen extends StatelessWidget {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
             itemCount: teachers.length,
             itemBuilder: (context, index) {
               final teacher = teachers[index];

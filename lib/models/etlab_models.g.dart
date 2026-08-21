@@ -15,15 +15,6 @@ EtlabSubjectAttendance _$EtlabSubjectAttendanceFromJson(
   total: _parseInt(_readTotal(json, 'total')),
 );
 
-Map<String, dynamic> _$EtlabSubjectAttendanceToJson(
-  EtlabSubjectAttendance instance,
-) => <String, dynamic>{
-  'code': instance.code,
-  'name': instance.name,
-  'attended': instance.attended,
-  'total': instance.total,
-};
-
 EtlabProfile _$EtlabProfileFromJson(Map<String, dynamic> json) => EtlabProfile(
   (json['timetable'] as List<dynamic>?)
       ?.map(
@@ -35,12 +26,6 @@ EtlabProfile _$EtlabProfileFromJson(Map<String, dynamic> json) => EtlabProfile(
   json['sem_id'],
 );
 
-Map<String, dynamic> _$EtlabProfileToJson(EtlabProfile instance) =>
-    <String, dynamic>{
-      'timetable': instance.timetable,
-      'sem_id': instance.sem_id,
-    };
-
 EtlabTimetableItem _$EtlabTimetableItemFromJson(Map<String, dynamic> json) =>
     EtlabTimetableItem(
       json['subject'] as String?,
@@ -48,14 +33,6 @@ EtlabTimetableItem _$EtlabTimetableItemFromJson(Map<String, dynamic> json) =>
       json['timeperiod'] as String?,
       json['teacher'] as String?,
     );
-
-Map<String, dynamic> _$EtlabTimetableItemToJson(EtlabTimetableItem instance) =>
-    <String, dynamic>{
-      'subject': instance.subject,
-      'type': instance.type,
-      'timeperiod': instance.timeperiod,
-      'teacher': instance.teacher,
-    };
 
 EtlabTeachersData _$EtlabTeachersDataFromJson(Map<String, dynamic> json) =>
     EtlabTeachersData(
@@ -70,13 +47,6 @@ EtlabTeachersData _$EtlabTeachersDataFromJson(Map<String, dynamic> json) =>
           .toList(),
     );
 
-Map<String, dynamic> _$EtlabTeachersDataToJson(EtlabTeachersData instance) =>
-    <String, dynamic>{
-      'hod': instance.hod,
-      'staffadvisor': instance.staffadvisor,
-      'sub_teacher': instance.sub_teacher,
-    };
-
 EtlabTeacher _$EtlabTeacherFromJson(Map<String, dynamic> json) => EtlabTeacher(
   json['t_name'] as String?,
   json['t_subject'] as String?,
@@ -84,12 +54,3 @@ EtlabTeacher _$EtlabTeacherFromJson(Map<String, dynamic> json) => EtlabTeacher(
   json['t_phone'] as String?,
   json['image_url'] as String?,
 );
-
-Map<String, dynamic> _$EtlabTeacherToJson(EtlabTeacher instance) =>
-    <String, dynamic>{
-      't_name': instance.t_name,
-      't_subject': instance.t_subject,
-      't_email': instance.t_email,
-      't_phone': instance.t_phone,
-      'image_url': instance.image_url,
-    };

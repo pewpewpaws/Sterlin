@@ -7,7 +7,6 @@ import '../services/notifications_service.dart';
 import '../widgets/todays_timetable.dart';
 import '../widgets/attendance_summary.dart';
 import '../widgets/next_class_card.dart';
-import '../widgets/app_drawer.dart';
 import 'notifications_screen.dart';
 
 enum DashboardWidgetType {
@@ -41,13 +40,24 @@ extension DashboardWidgetTypeExtension on DashboardWidgetType {
 }
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final bool isTabMode;
+  static final GlobalKey<DashboardScreenState> dashboardKey = GlobalKey<DashboardScreenState>();
+
+  const DashboardScreen({super.key, this.isTabMode = false});
+
+  static void openWidgetCustomizer(BuildContext context) {
+    dashboardKey.currentState?._openWidgetCustomizer();
+  }
+
+  static Future<void> refreshDashboard(BuildContext context) async {
+    await dashboardKey.currentState?._refreshData();
+  }
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  State<DashboardScreen> createState() => DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class DashboardScreenState extends State<DashboardScreen> {
   late List<ClassSession> _timetable;
   late List<CourseAttendance> _attendance;
   final bool _dutyLeaveCountsAsPresent = true;
@@ -343,46 +353,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final sem = profile['curnt_sem']?.toString() ?? '';
     final photoUrl = profile['url']?.toString();
 
-    return Scaffold(
-      drawer: const AppDrawer(currentRoute: '/dashboard'),
-      appBar: AppBar(
-        title: const Text('Sterlin'),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: 'Notifications',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.widgets_outlined),
-            tooltip: 'Customize Widgets',
-            onPressed: _openWidgetCustomizer,
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh Data',
-            onPressed: _refreshData,
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refreshData,
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+    Widget bodyContent = RefreshIndicator(
+      onRefresh: _refreshData,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                   // User Profile Banner
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -470,7 +452,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ),
+      );
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Sterlin'),
+        centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.widgets_outlined),
+            tooltip: 'Customize Widgets',
+            onPressed: _openWidgetCustomizer,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Data',
+            onPressed: _refreshData,
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Notifications',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+              );
+            },
+          ),
+        ],
       ),
+      body: bodyContent,
     );
   }
 }

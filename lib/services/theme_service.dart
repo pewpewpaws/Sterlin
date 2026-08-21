@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeService extends ChangeNotifier {
@@ -63,9 +64,14 @@ class ThemeService extends ChangeNotifier {
       );
     }
 
+    final baseTextTheme = ThemeData(brightness: Brightness.light).textTheme;
+    final textTheme = GoogleFonts.plusJakartaSansTextTheme(baseTextTheme);
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
+      textTheme: textTheme,
+      fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
       filledButtonTheme: FilledButtonThemeData(style: _buttonStyle),
       outlinedButtonTheme: OutlinedButtonThemeData(style: _buttonStyle),
       elevatedButtonTheme: ElevatedButtonThemeData(style: _buttonStyle),
@@ -84,9 +90,14 @@ class ThemeService extends ChangeNotifier {
       );
     }
 
+    final baseTextTheme = ThemeData(brightness: Brightness.dark).textTheme;
+    final textTheme = GoogleFonts.plusJakartaSansTextTheme(baseTextTheme);
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
+      textTheme: textTheme,
+      fontFamily: GoogleFonts.plusJakartaSans().fontFamily,
       filledButtonTheme: FilledButtonThemeData(style: _buttonStyle),
       outlinedButtonTheme: OutlinedButtonThemeData(style: _buttonStyle),
       elevatedButtonTheme: ElevatedButtonThemeData(style: _buttonStyle),

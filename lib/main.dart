@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:workmanager/workmanager.dart';
 import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/main_navigation_shell.dart';
 import 'services/etlab_api_service.dart';
 import 'services/app_logger_service.dart';
 import 'services/background_service.dart';
@@ -39,6 +40,15 @@ void callbackDispatcher() {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+      statusBarColor: Colors.transparent,
+    ),
+  );
   await AppLoggerService().init();
   await ThemeService.init();
   if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
@@ -69,13 +79,6 @@ class AIPApp extends StatelessWidget {
               themeMode: ts.themeMode,
               theme: ts.getLightTheme(lightDynamic),
               darkTheme: ts.getDarkTheme(darkDynamic),
-              builder: (context, child) {
-                return SafeArea(
-                  top: false,
-                  bottom: true,
-                  child: child ?? const SizedBox.shrink(),
-                );
-              },
               home: FutureBuilder<bool>(
                 future: EtlabApiService().initSession(),
                 builder: (context, snapshot) {
@@ -85,7 +88,7 @@ class AIPApp extends StatelessWidget {
                     );
                   }
                   final isLoggedIn = snapshot.data ?? false;
-                  return isLoggedIn ? const DashboardScreen() : const LoginScreen();
+                  return isLoggedIn ? const MainNavigationShell() : const LoginScreen();
                 },
               ),
             );
