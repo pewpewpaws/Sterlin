@@ -1,7 +1,7 @@
-package com.example.planner.widgets
+package com.pewpewpaws.sterlin.widgets
 
-import com.example.planner.R
-import com.example.planner.MainActivity
+import com.pewpewpaws.sterlin.R
+import com.pewpewpaws.sterlin.MainActivity
 
 import android.content.Context
 import android.content.Intent

@@ -1,7 +1,7 @@
-package com.example.planner.widgets
+package com.pewpewpaws.sterlin.widgets
 
-import com.example.planner.R
-import com.example.planner.MainActivity
+import com.pewpewpaws.sterlin.R
+import com.pewpewpaws.sterlin.MainActivity
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -18,40 +18,40 @@ class TimetableWidgetProvider : AppWidgetProvider() {
 
     companion object {
         const val PREFS_NAME = "HomeWidgetPreferences"
-        const val ACTION_PREV_DAY = "com.example.planner.ACTION_PREV_DAY"
-        const val ACTION_NEXT_DAY = "com.example.planner.ACTION_NEXT_DAY"
+        const val ACTION_PREV_DAY = "com.pewpewpaws.sterlin.ACTION_PREV_DAY"
+        const val ACTION_NEXT_DAY = "com.pewpewpaws.sterlin.ACTION_NEXT_DAY"
 
         private val DAY_NAMES = arrayOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
-            fun updateAllWidgets(context: Context) {
-                val mgr = AppWidgetManager.getInstance(context)
-                val ids = mgr.getAppWidgetIds(ComponentName(context, TimetableWidgetProvider::class.java))
-                if (ids.isNotEmpty()) {
-                    val provider = TimetableWidgetProvider()
-                    provider.onUpdate(context, mgr, ids)
-                    mgr.notifyAppWidgetViewDataChanged(ids, R.id.widget_flipper)
-                }
-            }
-
-            fun setVectorIcon(context: Context, views: RemoteViews, viewId: Int, vectorResId: Int) {
-                try {
-                    val vectorDrawable = context.getDrawable(vectorResId)
-                    if (vectorDrawable != null) {
-                        val bitmap = android.graphics.Bitmap.createBitmap(
-                            Math.max(1, vectorDrawable.intrinsicWidth),
-                            Math.max(1, vectorDrawable.intrinsicHeight),
-                            android.graphics.Bitmap.Config.ARGB_8888
-                        )
-                        val canvas = android.graphics.Canvas(bitmap)
-                        vectorDrawable.setBounds(0, 0, canvas.width, canvas.height)
-                        vectorDrawable.draw(canvas)
-                        views.setImageViewBitmap(viewId, bitmap)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("TimetableWidget", "Error setting vector icon: $e")
-                }
+        fun updateAllWidgets(context: Context) {
+            val mgr = AppWidgetManager.getInstance(context)
+            val ids = mgr.getAppWidgetIds(ComponentName(context, TimetableWidgetProvider::class.java))
+            if (ids.isNotEmpty()) {
+                val provider = TimetableWidgetProvider()
+                provider.onUpdate(context, mgr, ids)
+                mgr.notifyAppWidgetViewDataChanged(ids, R.id.widget_flipper)
             }
         }
+
+        fun setVectorIcon(context: Context, views: RemoteViews, viewId: Int, vectorResId: Int) {
+            try {
+                val vectorDrawable = context.getDrawable(vectorResId)
+                if (vectorDrawable != null) {
+                    val bitmap = android.graphics.Bitmap.createBitmap(
+                        Math.max(1, vectorDrawable.intrinsicWidth),
+                        Math.max(1, vectorDrawable.intrinsicHeight),
+                        android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = android.graphics.Canvas(bitmap)
+                    vectorDrawable.setBounds(0, 0, canvas.width, canvas.height)
+                    vectorDrawable.draw(canvas)
+                    views.setImageViewBitmap(viewId, bitmap)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TimetableWidget", "Error setting vector icon: $e")
+            }
+        }
+    }
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)

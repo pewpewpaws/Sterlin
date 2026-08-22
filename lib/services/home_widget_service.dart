@@ -123,7 +123,7 @@ class HomeWidgetService {
             name: _providerName,
             androidName: _providerName,
             qualifiedAndroidName:
-                'com.example.planner.widgets.TimetableWidgetProvider',
+                'com.pewpewpaws.sterlin.widgets.TimetableWidgetProvider',
           );
           debugPrint('[WIDGET] Widget update successful: $_providerName');
         } catch (e) {
@@ -156,7 +156,7 @@ class HomeWidgetService {
           name: _providerName,
           androidName: _providerName,
           qualifiedAndroidName:
-              'com.example.planner.widgets.TimetableWidgetProvider',
+              'com.pewpewpaws.sterlin.widgets.TimetableWidgetProvider',
         );
         debugPrint('[WIDGET] clearWidgetData() completed');
       }

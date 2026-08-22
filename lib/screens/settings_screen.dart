@@ -638,7 +638,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               onTap: () async {
                                 try {
                                   const platform = MethodChannel(
-                                    'com.example.planner/battery',
+                                    'com.pewpewpaws.sterlin/battery',
                                   );
                                   final bool result = await platform
                                       .invokeMethod(
