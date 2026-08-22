@@ -210,43 +210,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Column(
                         children: [
                           ListTile(
+                            contentPadding: EdgeInsets.zero,
                             title: const Text(
                               'Theme Mode',
                               style: TextStyle(fontWeight: FontWeight.bold),
                             ),
-                            subtitle: const Text(
-                              'Light, Dark, or match System.',
-                            ),
-                            trailing: SegmentedButton<ThemeMode>(
-                              segments: const [
-                                ButtonSegment(
-                                  value: ThemeMode.system,
-                                  icon: Icon(Icons.brightness_auto),
-                                ),
-                                ButtonSegment(
-                                  value: ThemeMode.light,
-                                  icon: Icon(Icons.light_mode),
-                                ),
-                                ButtonSegment(
-                                  value: ThemeMode.dark,
-                                  icon: Icon(Icons.dark_mode),
-                                ),
-                              ],
-                              selected: {ThemeService().themeMode},
-                              onSelectionChanged: (set) {
-                                ThemeService().setThemeMode(
-                                  set.first,
-                                  theme.brightness,
-                                );
+                            subtitle: Text(
+                              switch (ThemeService().themeMode) {
+                                ThemeMode.light => 'Always light.',
+                                ThemeMode.dark => 'Always dark.',
+                                ThemeMode.system =>
+                                  'Matching your phone — ${theme.brightness == Brightness.dark ? 'dark' : 'light'} right now.',
                               },
-                              showSelectedIcon: false,
-                              style: SegmentedButton.styleFrom(
-                                visualDensity: VisualDensity.compact,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                              ),
                             ),
+                          ),
+                          const SizedBox(height: 4),
+                          SegmentedButton<ThemeMode>(
+                            segments: const [
+                              ButtonSegment(
+                                value: ThemeMode.system,
+                                icon: Icon(Icons.brightness_auto, size: 18),
+                                label: Text('Auto'),
+                              ),
+                              ButtonSegment(
+                                value: ThemeMode.light,
+                                icon: Icon(Icons.light_mode, size: 18),
+                                label: Text('Light'),
+                              ),
+                              ButtonSegment(
+                                value: ThemeMode.dark,
+                                icon: Icon(Icons.dark_mode, size: 18),
+                                label: Text('Dark'),
+                              ),
+                            ],
+                            selected: {ThemeService().themeMode},
+                            onSelectionChanged: (set) {
+                              ThemeService().setThemeMode(set.first);
+                            },
+                            showSelectedIcon: false,
+                            style: SegmentedButton.styleFrom(),
                           ),
                           const Divider(height: 1),
                           ListTile(
