@@ -127,7 +127,7 @@ class DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             content: Text(
-              'StudentPlanner uses notifications to immediately alert you whenever absences or attendance changes are recorded. You can easily turn this on or off anytime in Settings.',
+              'Sterlin uses notifications to immediately alert you whenever absences or attendance changes are recorded. You can easily turn this on or off anytime in Settings.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
