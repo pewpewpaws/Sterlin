@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/etlab_api_service.dart';
+import '../widgets/page_header.dart';
 import 'attendance_screen.dart';
 import 'login_screen.dart';
 import 'notifications_screen.dart';
@@ -20,7 +21,11 @@ class HubScreen extends StatefulWidget {
     'settings',
   ];
 
-  static final Map<String, ({String label, IconData icon, IconData selectedIcon})> tabMetadata = {
+  static final Map<
+    String,
+    ({String label, IconData icon, IconData selectedIcon})
+  >
+  tabMetadata = {
     'attendance': (
       label: 'Attendance',
       icon: Icons.analytics_outlined,
@@ -50,11 +55,19 @@ class HubScreen extends StatefulWidget {
     this.onSwitchTab,
   });
 
-  static Future<void> openNavCustomizer(BuildContext context, {VoidCallback? onSaved}) async {
+  static Future<void> openNavCustomizer(
+    BuildContext context, {
+    VoidCallback? onSaved,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    List<String> currentMiddleTabs = List<String>.from(prefs.getStringList(HubScreen.navPrefsKey) ?? ['attendance', 'faculty']);
-    currentMiddleTabs.retainWhere((id) => HubScreen.tabMetadata.containsKey(id));
-    if (currentMiddleTabs.isEmpty) currentMiddleTabs = ['attendance', 'faculty'];
+    List<String> currentMiddleTabs = List<String>.from(
+      prefs.getStringList(HubScreen.navPrefsKey) ?? ['attendance', 'faculty'],
+    );
+    currentMiddleTabs.retainWhere(
+      (id) => HubScreen.tabMetadata.containsKey(id),
+    );
+    if (currentMiddleTabs.isEmpty)
+      currentMiddleTabs = ['attendance', 'faculty'];
 
     if (!context.mounted) return;
 
@@ -71,7 +84,10 @@ class HubScreen extends StatefulWidget {
 
             return SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,7 +97,9 @@ class HubScreen extends StatefulWidget {
                       children: [
                         Text(
                           'Customize Bottom Bar',
-                          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
@@ -95,11 +113,17 @@ class HubScreen extends StatefulWidget {
                       decoration: BoxDecoration(
                         color: theme.colorScheme.primaryContainer.withAlpha(80),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: theme.colorScheme.primary.withAlpha(60)),
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withAlpha(60),
+                        ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.info_outline_rounded, color: theme.colorScheme.primary, size: 20),
+                          Icon(
+                            Icons.info_outline_rounded,
+                            color: theme.colorScheme.primary,
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
@@ -121,11 +145,19 @@ class HubScreen extends StatefulWidget {
                       color: theme.colorScheme.surfaceContainerHigh,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(80)),
+                        side: BorderSide(
+                          color: theme.colorScheme.outlineVariant.withAlpha(80),
+                        ),
                       ),
                       child: ListTile(
-                        leading: Icon(Icons.home_rounded, color: theme.colorScheme.primary),
-                        title: const Text('Home / Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
+                        leading: Icon(
+                          Icons.home_rounded,
+                          color: theme.colorScheme.primary,
+                        ),
+                        title: const Text(
+                          'Home / Dashboard',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         subtitle: const Text('Locked — Always 1st'),
                         trailing: const Icon(Icons.lock_outline, size: 20),
                       ),
@@ -141,9 +173,17 @@ class HubScreen extends StatefulWidget {
                       return CheckboxListTile(
                         value: isSelected,
                         secondary: Icon(meta.icon),
-                        title: Text(meta.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        title: Text(
+                          meta.label,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
                         subtitle: isSelected
-                            ? Text('Selected (${currentMiddleTabs.indexOf(tabId) + 1}/2)', style: TextStyle(color: theme.colorScheme.primary))
+                            ? Text(
+                                'Selected (${currentMiddleTabs.indexOf(tabId) + 1}/2)',
+                                style: TextStyle(
+                                  color: theme.colorScheme.primary,
+                                ),
+                              )
                             : const Text('Not on bar'),
                         onChanged: (bool? val) {
                           setModalState(() {
@@ -153,7 +193,9 @@ class HubScreen extends StatefulWidget {
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('You can only select up to 2 extras.'),
+                                    content: Text(
+                                      'You can only select up to 2 extras.',
+                                    ),
                                     duration: Duration(seconds: 2),
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -165,7 +207,9 @@ class HubScreen extends StatefulWidget {
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('You must keep at least 1 extra tab selected.'),
+                                    content: Text(
+                                      'You must keep at least 1 extra tab selected.',
+                                    ),
                                     duration: Duration(seconds: 2),
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -184,11 +228,19 @@ class HubScreen extends StatefulWidget {
                       color: theme.colorScheme.surfaceContainerHigh,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(80)),
+                        side: BorderSide(
+                          color: theme.colorScheme.outlineVariant.withAlpha(80),
+                        ),
                       ),
                       child: ListTile(
-                        leading: Icon(Icons.widgets_rounded, color: theme.colorScheme.primary),
-                        title: const Text('More & Hub', style: TextStyle(fontWeight: FontWeight.bold)),
+                        leading: Icon(
+                          Icons.widgets_rounded,
+                          color: theme.colorScheme.primary,
+                        ),
+                        title: const Text(
+                          'More & Hub',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
                         subtitle: const Text('Locked — Always last'),
                         trailing: const Icon(Icons.lock_outline, size: 20),
                       ),
@@ -199,7 +251,10 @@ class HubScreen extends StatefulWidget {
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: () async {
-                          await prefs.setStringList(HubScreen.navPrefsKey, currentMiddleTabs);
+                          await prefs.setStringList(
+                            HubScreen.navPrefsKey,
+                            currentMiddleTabs,
+                          );
                           if (!context.mounted) return;
                           Navigator.pop(context);
                           onSaved?.call();
@@ -234,9 +289,12 @@ class _HubScreenState extends State<HubScreen> {
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList(HubScreen.navPrefsKey);
     if (list != null && mounted) {
-      final valid = List<String>.from(list)..retainWhere((id) => HubScreen.tabMetadata.containsKey(id));
+      final valid = List<String>.from(list)
+        ..retainWhere((id) => HubScreen.tabMetadata.containsKey(id));
       setState(() {
-        _pinnedMiddleTabs = valid.isNotEmpty ? valid : ['attendance', 'faculty'];
+        _pinnedMiddleTabs = valid.isNotEmpty
+            ? valid
+            : ['attendance', 'faculty'];
       });
     }
   }
@@ -253,7 +311,9 @@ class _HubScreenState extends State<HubScreen> {
             Text('Confirm Logout'),
           ],
         ),
-        content: const Text('Are you sure you want to log out of your academic session?'),
+        content: const Text(
+          'Are you sure you want to log out of your academic session?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -323,7 +383,10 @@ class _HubScreenState extends State<HubScreen> {
                   ),
                   if (isPinned)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.primaryContainer,
                         borderRadius: BorderRadius.circular(8),
@@ -331,7 +394,11 @@ class _HubScreenState extends State<HubScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.push_pin_rounded, size: 10, color: theme.colorScheme.onPrimaryContainer),
+                          Icon(
+                            Icons.push_pin_rounded,
+                            size: 10,
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
                           const SizedBox(width: 3),
                           Text(
                             'ON BAR',
@@ -382,134 +449,155 @@ class _HubScreenState extends State<HubScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Hub & Services'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: 'Notifications',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-
-                // Section Header
-                Text(
-                  'ALL FEATURES & TOOLS',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.1,
+      body: SafeArea(
+        bottom: false,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 640),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PageHeader(
+                    title: 'Hub & Services',
+                    padding: const EdgeInsets.only(top: 10, bottom: 14),
+                    actions: [
+                      HeaderAction(
+                        icon: Icons.notifications_outlined,
+                        tooltip: 'Notifications',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NotificationsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 10),
 
-                // Modern 2-Column Grid of Tiles
-                GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.05,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _buildHubTile(
-                      context,
-                      title: 'Attendance',
-                      subtitle: 'Subject logs & bunk predictor',
-                      icon: Icons.analytics_rounded,
-                      iconColor: theme.colorScheme.primary,
-                      iconBgColor: theme.colorScheme.primaryContainer,
-                      isPinned: _pinnedMiddleTabs.contains('attendance'),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AttendanceScreen()),
-                        );
-                      },
+                  // Section Header
+                  Text(
+                    'ALL FEATURES & TOOLS',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
                     ),
-                    _buildHubTile(
-                      context,
-                      title: 'Faculty',
-                      subtitle: 'Advisor, HOD & teachers',
-                      icon: Icons.people_alt_rounded,
-                      iconColor: theme.colorScheme.secondary,
-                      iconBgColor: theme.colorScheme.secondaryContainer,
-                      isPinned: _pinnedMiddleTabs.contains('faculty'),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const TeachersScreen()),
-                        );
-                      },
-                    ),
-                    _buildHubTile(
-                      context,
-                      title: 'Notifications',
-                      subtitle: 'Absence alerts & tracker',
-                      icon: Icons.notifications_rounded,
-                      iconColor: theme.colorScheme.error,
-                      iconBgColor: theme.colorScheme.errorContainer,
-                      isPinned: _pinnedMiddleTabs.contains('notifications'),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                        );
-                      },
-                    ),
-                    _buildHubTile(
-                      context,
-                      title: 'Settings',
-                      subtitle: 'Themes, target %, nav bar',
-                      icon: Icons.settings_rounded,
-                      iconColor: theme.colorScheme.tertiary,
-                      iconBgColor: theme.colorScheme.tertiaryContainer,
-                      isPinned: _pinnedMiddleTabs.contains('settings'),
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                        );
-                        _loadPinned();
-                        widget.onNavConfigChanged?.call();
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // Logout Button
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: theme.colorScheme.error,
-                      side: BorderSide(color: theme.colorScheme.error.withAlpha(120)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    icon: const Icon(Icons.logout_rounded),
-                    label: const Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold)),
-                    onPressed: _showLogoutDialog,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+
+                  // Modern 2-Column Grid of Tiles
+                  GridView.count(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.05,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      _buildHubTile(
+                        context,
+                        title: 'Attendance',
+                        subtitle: 'Subject logs & bunk predictor',
+                        icon: Icons.analytics_rounded,
+                        iconColor: theme.colorScheme.primary,
+                        iconBgColor: theme.colorScheme.primaryContainer,
+                        isPinned: _pinnedMiddleTabs.contains('attendance'),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AttendanceScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildHubTile(
+                        context,
+                        title: 'Faculty',
+                        subtitle: 'Advisor, HOD & teachers',
+                        icon: Icons.people_alt_rounded,
+                        iconColor: theme.colorScheme.secondary,
+                        iconBgColor: theme.colorScheme.secondaryContainer,
+                        isPinned: _pinnedMiddleTabs.contains('faculty'),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TeachersScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildHubTile(
+                        context,
+                        title: 'Notifications',
+                        subtitle: 'Absence alerts & tracker',
+                        icon: Icons.notifications_rounded,
+                        iconColor: theme.colorScheme.error,
+                        iconBgColor: theme.colorScheme.errorContainer,
+                        isPinned: _pinnedMiddleTabs.contains('notifications'),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const NotificationsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildHubTile(
+                        context,
+                        title: 'Settings',
+                        subtitle: 'Themes, target %, nav bar',
+                        icon: Icons.settings_rounded,
+                        iconColor: theme.colorScheme.tertiary,
+                        iconBgColor: theme.colorScheme.tertiaryContainer,
+                        isPinned: _pinnedMiddleTabs.contains('settings'),
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsScreen(),
+                            ),
+                          );
+                          _loadPinned();
+                          widget.onNavConfigChanged?.call();
+                        },
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Logout Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                        side: BorderSide(
+                          color: theme.colorScheme.error.withAlpha(120),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.logout_rounded),
+                      label: const Text(
+                        'Log Out',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: _showLogoutDialog,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

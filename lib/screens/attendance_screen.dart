@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../services/etlab_api_service.dart';
 import '../widgets/attendance_summary.dart';
+import '../widgets/page_header.dart';
 import 'notifications_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -299,39 +300,51 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Overall Attendance'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.notifications_outlined),
-              tooltip: 'Notifications',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                );
-              },
-            ),
-          ],
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: 'By Subject'),
-              Tab(text: 'By Day'),
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PageHeader(
+                title: 'Attendance',
+                actions: [
+                  HeaderAction(
+                    icon: Icons.notifications_outlined,
+                    tooltip: 'Notifications',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const TabBar(
+                tabs: [
+                  Tab(text: 'By Subject'),
+                  Tab(text: 'By Day'),
+                ],
+              ),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 640),
+                    child: TabBarView(
+                      children: [
+                        // Tab 1: Subjectwise Attendance
+                        _buildSubjectwiseTab(theme),
+                        // Tab 2: Dynamic Attendance Calendar View
+                        _CalendarAttendanceView(isTabMode: widget.isTabMode),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ],
-          ),
-        ),
-        body: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 640),
-            child: TabBarView(
-              children: [
-                // Tab 1: Subjectwise Attendance
-                _buildSubjectwiseTab(theme),
-                // Tab 2: Dynamic Attendance Calendar View
-                _CalendarAttendanceView(isTabMode: widget.isTabMode),
-              ],
-            ),
           ),
         ),
       ),
@@ -479,8 +492,13 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
     final earliestMonth = DateTime(now.year, now.month - _monthsBack, 1);
     final latestMonth = DateTime(now.year, now.month + 1, 1);
 
-    final newMonth = DateTime(_focusedMonth.year, _focusedMonth.month + increment, 1);
-    if (newMonth.isBefore(earliestMonth) || newMonth.isAfter(latestMonth)) return;
+    final newMonth = DateTime(
+      _focusedMonth.year,
+      _focusedMonth.month + increment,
+      1,
+    );
+    if (newMonth.isBefore(earliestMonth) || newMonth.isAfter(latestMonth))
+      return;
 
     final key = '${newMonth.year}_${newMonth.month}';
     final api = EtlabApiService();
@@ -567,12 +585,17 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
     final leadingEmptySlots = firstWeekday % 7; // Sun=0, Mon=1...
 
     final now = DateTime.now();
-    final isCurrentMonth = _focusedMonth.year == year && _focusedMonth.month == m;
+    final isCurrentMonth =
+        _focusedMonth.year == year && _focusedMonth.month == m;
     final earliestLimit = DateTime(now.year, now.month - _monthsBack, 1);
     final latestLimit = DateTime(now.year, now.month + 1, 1);
 
-    final isLatestMonth = year > latestLimit.year || (year == latestLimit.year && m >= latestLimit.month);
-    final isEarliestMonth = year < earliestLimit.year || (year == earliestLimit.year && m <= earliestLimit.month);
+    final isLatestMonth =
+        year > latestLimit.year ||
+        (year == latestLimit.year && m >= latestLimit.month);
+    final isEarliestMonth =
+        year < earliestLimit.year ||
+        (year == earliestLimit.year && m <= earliestLimit.month);
 
     final isDark = theme.brightness == Brightness.dark;
     final presentColor = isDark
@@ -718,16 +741,26 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
                 });
 
                 final scheduledCount = _getScheduledPeriodCount(currentDt);
-                final bool allScheduledMarked = validPeriods.length >= scheduledCount;
+                final bool allScheduledMarked =
+                    validPeriods.length >= scheduledCount;
 
                 final bool allPresent =
-                    hasValidClasses && allScheduledMarked && !hasAbsent && !hasDutyLeave;
+                    hasValidClasses &&
+                    allScheduledMarked &&
+                    !hasAbsent &&
+                    !hasDutyLeave;
                 final bool allPresentWithDL =
-                    hasValidClasses && allScheduledMarked && !hasAbsent && hasDutyLeave;
-                final bool allAbsent = hasValidClasses &&
+                    hasValidClasses &&
+                    allScheduledMarked &&
+                    !hasAbsent &&
+                    hasDutyLeave;
+                final bool allAbsent =
+                    hasValidClasses &&
                     allScheduledMarked &&
                     validPeriods.every((p) {
-                      final att = p['attendance']?.toString().trim().toLowerCase() ?? '';
+                      final att =
+                          p['attendance']?.toString().trim().toLowerCase() ??
+                          '';
                       return att == 'absent';
                     });
 
@@ -818,7 +851,10 @@ class _CalendarAttendanceViewState extends State<_CalendarAttendanceView> {
                             style: TextStyle(
                               color: textColor,
                               fontWeight:
-                                  (isToday || allPresent || allPresentWithDL || allAbsent)
+                                  (isToday ||
+                                      allPresent ||
+                                      allPresentWithDL ||
+                                      allAbsent)
                                   ? FontWeight.bold
                                   : FontWeight.w600,
                               fontSize: 14,

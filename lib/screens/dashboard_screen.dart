@@ -7,13 +7,10 @@ import '../services/notifications_service.dart';
 import '../widgets/todays_timetable.dart';
 import '../widgets/attendance_summary.dart';
 import '../widgets/next_class_card.dart';
+import '../widgets/page_header.dart';
 import 'notifications_screen.dart';
 
-enum DashboardWidgetType {
-  nextClass,
-  timetable,
-  attendance,
-}
+enum DashboardWidgetType { nextClass, timetable, attendance }
 
 extension DashboardWidgetTypeExtension on DashboardWidgetType {
   String get title {
@@ -41,7 +38,8 @@ extension DashboardWidgetTypeExtension on DashboardWidgetType {
 
 class DashboardScreen extends StatefulWidget {
   final bool isTabMode;
-  static final GlobalKey<DashboardScreenState> dashboardKey = GlobalKey<DashboardScreenState>();
+  static final GlobalKey<DashboardScreenState> dashboardKey =
+      GlobalKey<DashboardScreenState>();
 
   const DashboardScreen({super.key, this.isTabMode = false});
 
@@ -103,7 +101,9 @@ class DashboardScreenState extends State<DashboardScreen> {
         builder: (ctx) {
           final theme = Theme.of(ctx);
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             title: Row(
               children: [
                 Container(
@@ -166,7 +166,9 @@ class DashboardScreenState extends State<DashboardScreen> {
         subjectsData: subjects,
         teachersData: teachers,
       );
-      _attendance = DashboardDataMapper.parseAttendanceFromSubjects(subjects ?? profile);
+      _attendance = DashboardDataMapper.parseAttendanceFromSubjects(
+        subjects ?? profile,
+      );
     });
 
     HomeWidgetService.updateHomeScreenWidget(
@@ -182,8 +184,12 @@ class DashboardScreenState extends State<DashboardScreen> {
   List<CourseAttendance> get _todaysAttendance {
     if (_timetable.isEmpty) return [];
 
-    final todaysCourseIds = _timetable.map((s) => s.courseId.toLowerCase()).toSet();
-    final todaysCourseNames = _timetable.map((s) => s.courseName.toLowerCase()).toSet();
+    final todaysCourseIds = _timetable
+        .map((s) => s.courseId.toLowerCase())
+        .toSet();
+    final todaysCourseNames = _timetable
+        .map((s) => s.courseName.toLowerCase())
+        .toSet();
 
     final filtered = _attendance.where((a) {
       final idMatch = todaysCourseIds.contains(a.courseId.toLowerCase());
@@ -235,7 +241,8 @@ class DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Text(
                           'Customize Home Widgets',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
@@ -272,7 +279,10 @@ class DashboardScreenState extends State<DashboardScreen> {
                             controlAffinity: ListTileControlAffinity.leading,
                             title: Row(
                               children: [
-                                Icon(widgetType.icon, color: Theme.of(context).colorScheme.primary),
+                                Icon(
+                                  widgetType.icon,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                                 const SizedBox(width: 16),
                                 Expanded(child: Text(widgetType.title)),
                               ],
@@ -311,7 +321,10 @@ class DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildDashboardWidget(DashboardWidgetType type, Map<String, dynamic>? profile) {
+  Widget _buildDashboardWidget(
+    DashboardWidgetType type,
+    Map<String, dynamic>? profile,
+  ) {
     switch (type) {
       case DashboardWidgetType.nextClass:
         return NextClassCardWidget(sessions: _timetable);
@@ -339,17 +352,14 @@ class DashboardScreenState extends State<DashboardScreen> {
     final profile = EtlabApiService().profileData;
 
     if (profile == null) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Sterlin'),
-          centerTitle: false,
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final studentName = profile['name']?.toString() ?? 'Student';
-    final regNo = profile['register_no']?.toString() ?? profile['student_id']?.toString() ?? '';
+    final regNo =
+        profile['register_no']?.toString() ??
+        profile['student_id']?.toString() ??
+        '';
     final sem = profile['curnt_sem']?.toString() ?? '';
     final photoUrl = profile['url']?.toString();
 
@@ -361,13 +371,20 @@ class DashboardScreenState extends State<DashboardScreen> {
           constraints: const BoxConstraints(maxWidth: 640),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(0, 8, 0, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+            padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top-left greeting header
+                  _buildHomeHeader(context, theme, studentName),
                   // User Profile Banner
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     child: Card(
                       color: theme.colorScheme.primaryContainer,
                       child: Padding(
@@ -377,12 +394,18 @@ class DashboardScreenState extends State<DashboardScreen> {
                             CircleAvatar(
                               radius: 28,
                               backgroundColor: theme.colorScheme.primary,
-                              backgroundImage: (photoUrl != null && photoUrl.startsWith('http'))
+                              backgroundImage:
+                                  (photoUrl != null &&
+                                      photoUrl.startsWith('http'))
                                   ? NetworkImage(photoUrl)
                                   : null,
-                              child: (photoUrl == null || !photoUrl.startsWith('http'))
+                              child:
+                                  (photoUrl == null ||
+                                      !photoUrl.startsWith('http'))
                                   ? Text(
-                                      studentName.isNotEmpty ? studentName[0] : 'S',
+                                      studentName.isNotEmpty
+                                          ? studentName[0]
+                                          : 'S',
                                       style: TextStyle(
                                         fontSize: 22,
                                         color: theme.colorScheme.onPrimary,
@@ -398,25 +421,34 @@ class DashboardScreenState extends State<DashboardScreen> {
                                 children: [
                                   Text(
                                     studentName,
-                                    style: theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: theme.colorScheme.onPrimaryContainer,
-                                    ),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: theme
+                                              .colorScheme
+                                              .onPrimaryContainer,
+                                        ),
                                   ),
                                   if (regNo.isNotEmpty)
                                     Text(
                                       'Reg: $regNo',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onPrimaryContainer,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onPrimaryContainer,
+                                          ),
                                     ),
                                   if (sem.isNotEmpty)
                                     Text(
                                       sem,
-                                      style: theme.textTheme.labelMedium?.copyWith(
-                                        color: theme.colorScheme.onPrimaryContainer,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      style: theme.textTheme.labelMedium
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onPrimaryContainer,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                     ),
                                 ],
                               ),
@@ -427,13 +459,18 @@ class DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  if (_isLoading) const Center(child: LinearProgressIndicator()),
+                  if (_isLoading)
+                    const Center(child: LinearProgressIndicator()),
 
                   // Active Dashboard Widgets
-                  ..._widgetOrder.where((w) => _activeWidgets.contains(w)).map((type) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _buildDashboardWidget(type, profile),
-                  )),
+                  ..._widgetOrder
+                      .where((w) => _activeWidgets.contains(w))
+                      .map(
+                        (type) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildDashboardWidget(type, profile),
+                        ),
+                      ),
 
                   // Add Widget Button Footer
                   Center(
@@ -452,27 +489,62 @@ class DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         ),
-      );
+      ),
+    );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sterlin'),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.widgets_outlined),
+    return Scaffold(body: bodyContent);
+  }
+
+  /// Top-left greeting header: eyebrow greeting + student name, with the
+  /// page actions on the right.
+  Widget _buildHomeHeader(
+    BuildContext context,
+    ThemeData theme,
+    String studentName,
+  ) {
+    final firstName = studentName.split(' ').first;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _greeting.toUpperCase(),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.6,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  firstName,
+                  style: theme.textTheme.displaySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          HeaderAction(
+            icon: Icons.widgets_outlined,
             tooltip: 'Customize Widgets',
-            onPressed: _openWidgetCustomizer,
+            onTap: _openWidgetCustomizer,
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
+          const SizedBox(width: 10),
+          HeaderAction(
+            icon: Icons.refresh,
             tooltip: 'Refresh Data',
-            onPressed: _refreshData,
+            onTap: _refreshData,
           ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
+          const SizedBox(width: 10),
+          HeaderAction(
+            icon: Icons.notifications_outlined,
             tooltip: 'Notifications',
-            onPressed: () {
+            onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const NotificationsScreen()),
@@ -481,7 +553,14 @@ class DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ),
-      body: bodyContent,
     );
+  }
+
+  String get _greeting {
+    final h = DateTime.now().hour;
+    if (h < 5) return 'Late night';
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 }
