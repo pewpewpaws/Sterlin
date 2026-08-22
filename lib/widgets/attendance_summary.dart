@@ -30,6 +30,13 @@ class AttendanceSummaryWidget extends StatefulWidget {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final theme = Theme.of(context);
+
+            Future<void> applyTarget() async {
+              await EtlabApiService()
+                  .setTargetAttendancePct(currentIntPct / 100.0);
+              onTargetChanged?.call();
+            }
+
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               child: Column(
@@ -75,6 +82,7 @@ class AttendanceSummaryWidget extends StatefulWidget {
                         currentIntPct = val.round();
                       });
                     },
+                    onChangeEnd: (_) => applyTarget(),
                   ),
                   const SizedBox(height: 8),
                   Center(
@@ -91,26 +99,14 @@ class AttendanceSummaryWidget extends StatefulWidget {
                             setModalState(() {
                               currentIntPct = p;
                             });
+                            applyTarget();
                           },
                         );
                       }).toList(),
                     ),
                   ),
                   const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () async {
-                        final double cleanPct = currentIntPct / 100.0;
-                        await EtlabApiService().setTargetAttendancePct(cleanPct);
-                        if (ctx.mounted) {
-                          Navigator.pop(ctx);
-                          onTargetChanged?.call();
-                        }
-                      },
-                      child: const Text('Save Target'),
-                    ),
-                  ),
+                  const SizedBox(height: 48),
                 ],
               ),
             );

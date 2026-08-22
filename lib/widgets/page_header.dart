@@ -10,6 +10,7 @@ class PageHeader extends StatelessWidget {
   final String? eyebrow;
   final List<Widget> actions;
   final EdgeInsetsGeometry padding;
+  final bool implyBackButton;
 
   const PageHeader({
     super.key,
@@ -17,12 +18,13 @@ class PageHeader extends StatelessWidget {
     this.eyebrow,
     this.actions = const [],
     this.padding = const EdgeInsets.fromLTRB(20, 14, 20, 4),
+    this.implyBackButton = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canPop = Navigator.of(context).canPop();
+    final canPop = Navigator.of(context).canPop() && implyBackButton;
 
     return Padding(
       padding: padding,

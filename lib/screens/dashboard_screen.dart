@@ -10,6 +10,7 @@ import '../widgets/next_class_card.dart';
 import '../widgets/navigation_tutorial.dart';
 import '../widgets/page_header.dart';
 import 'notifications_screen.dart';
+import 'profile_screen.dart';
 
 enum DashboardWidgetType { nextClass, timetable, attendance }
 
@@ -340,213 +341,101 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final profile = EtlabApiService().profileData;
 
     if (profile == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final studentName = profile['name']?.toString() ?? 'Student';
-    final regNo =
-        profile['register_no']?.toString() ??
-        profile['student_id']?.toString() ??
-        '';
-    final sem = profile['curnt_sem']?.toString() ?? '';
-    final photoUrl = profile['url']?.toString();
+    final firstName =
+        (profile['name']?.toString() ?? 'Student').split(' ').first;
 
-    Widget bodyContent = RefreshIndicator(
-      onRefresh: _refreshData,
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(0, 0, 0, 24),
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top-left greeting header
-                  _buildHomeHeader(context, theme, studentName),
-                  // User Profile Banner
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Card(
-                      color: theme.colorScheme.primaryContainer,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 28,
-                              backgroundColor: theme.colorScheme.primary,
-                              backgroundImage:
-                                  (photoUrl != null &&
-                                      photoUrl.startsWith('http'))
-                                  ? NetworkImage(photoUrl)
-                                  : null,
-                              child:
-                                  (photoUrl == null ||
-                                      !photoUrl.startsWith('http'))
-                                  ? Text(
-                                      studentName.isNotEmpty
-                                          ? studentName[0]
-                                          : 'S',
-                                      style: TextStyle(
-                                        fontSize: 22,
-                                        color: theme.colorScheme.onPrimary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    studentName,
-                                    style: theme.textTheme.titleMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: theme
-                                              .colorScheme
-                                              .onPrimaryContainer,
-                                        ),
-                                  ),
-                                  if (regNo.isNotEmpty)
-                                    Text(
-                                      'Reg: $regNo',
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
-                                            color: theme
-                                                .colorScheme
-                                                .onPrimaryContainer,
-                                          ),
-                                    ),
-                                  if (sem.isNotEmpty)
-                                    Text(
-                                      sem,
-                                      style: theme.textTheme.labelMedium
-                                          ?.copyWith(
-                                            color: theme
-                                                .colorScheme
-                                                .onPrimaryContainer,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+    Widget bodyContent = Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PageHeader(
+                title: firstName,
+                eyebrow: _greeting,
+                implyBackButton: false,
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                actions: [
+                  HeaderAction(
+                    icon: Icons.widgets_outlined,
+                    tooltip: 'Customize Widgets',
+                    onTap: _openWidgetCustomizer,
                   ),
-                  const SizedBox(height: 4),
-                  if (_isLoading)
-                    const Center(child: LinearProgressIndicator()),
-
-                  // Active Dashboard Widgets
-                  ..._widgetOrder
-                      .where((w) => _activeWidgets.contains(w))
-                      .map(
-                        (type) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _buildDashboardWidget(type, profile),
-                        ),
-                      ),
-
-                  // Add Widget Button Footer
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: OutlinedButton.icon(
-                        onPressed: _openWidgetCustomizer,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add / Customize Widgets'),
-                      ),
-                    ),
+                  HeaderAction(
+                    icon: Icons.refresh,
+                    tooltip: 'Refresh Data',
+                    onTap: _refreshData,
                   ),
-                  const SizedBox(height: 24),
+                  HeaderAction(
+                    key: NavigationTutorial.bellKey,
+                    icon: Icons.notifications_outlined,
+                    tooltip: 'Notifications',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const ProfileAvatarAction(),
                 ],
               ),
-            ),
+              if (_isLoading)
+                const Center(child: LinearProgressIndicator()),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refreshData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Active Dashboard Widgets
+                        ..._widgetOrder
+                            .where((w) => _activeWidgets.contains(w))
+                            .map(
+                              (type) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _buildDashboardWidget(type, profile),
+                              ),
+                            ),
+
+                        // Add Widget Button Footer
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: OutlinedButton.icon(
+                              onPressed: _openWidgetCustomizer,
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add / Customize Widgets'),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
 
     return Scaffold(body: bodyContent);
-  }
-
-  /// Top-left greeting header: eyebrow greeting + student name, with the
-  /// page actions on the right.
-  Widget _buildHomeHeader(
-    BuildContext context,
-    ThemeData theme,
-    String studentName,
-  ) {
-    final firstName = studentName.split(' ').first;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _greeting.toUpperCase(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    letterSpacing: 1.6,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  firstName,
-                  style: theme.textTheme.displaySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          HeaderAction(
-            icon: Icons.widgets_outlined,
-            tooltip: 'Customize Widgets',
-            onTap: _openWidgetCustomizer,
-          ),
-          const SizedBox(width: 10),
-          HeaderAction(
-            icon: Icons.refresh,
-            tooltip: 'Refresh Data',
-            onTap: _refreshData,
-          ),
-          const SizedBox(width: 10),
-          HeaderAction(
-            key: NavigationTutorial.bellKey,
-            icon: Icons.notifications_outlined,
-            tooltip: 'Notifications',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-    );
   }
 
   String get _greeting {

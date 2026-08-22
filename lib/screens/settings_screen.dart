@@ -10,6 +10,7 @@ import '../widgets/attendance_summary.dart';
 import '../widgets/navigation_tutorial.dart';
 import '../widgets/page_header.dart';
 import 'notifications_screen.dart';
+import 'profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -184,6 +185,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           );
                         },
                       ),
+                      const ProfileAvatarAction(),
                     ],
                   ),
                   // Appearance Section

@@ -3,6 +3,7 @@ import '../models/dashboard_data.dart';
 import '../services/etlab_api_service.dart';
 import '../widgets/page_header.dart';
 import 'notifications_screen.dart';
+import 'profile_screen.dart';
 
 class TeachersScreen extends StatefulWidget {
   const TeachersScreen({super.key});
@@ -67,6 +68,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
                     );
                   },
                 ),
+                const ProfileAvatarAction(),
               ],
             ),
             Expanded(

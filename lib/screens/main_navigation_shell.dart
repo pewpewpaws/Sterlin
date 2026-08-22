@@ -143,6 +143,7 @@ class _MainNavigationShellState extends State<MainNavigationShell>
                       selectedIndex: _currentIndex,
                       items: _allNavItems,
                       onDestinationSelected: (index) {
+                        if (index == _currentIndex) return;
                         setState(() {
                           _currentIndex = index;
                         });

@@ -93,8 +93,10 @@ class _FloatingPillNavBarState extends State<FloatingPillNavBar> with SingleTick
 
     _animController.forward(from: 0.0).then((_) {
       if (mounted && notifyOnComplete) {
+        final targetIndex = target.round();
+        if (targetIndex == widget.selectedIndex) return;
         HapticFeedback.heavyImpact();
-        widget.onDestinationSelected(target.round());
+        widget.onDestinationSelected(targetIndex);
       }
     });
   }

@@ -81,6 +81,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
   double? _displayTop;
   double _borderScale = 0.0;
   double _scrimScale = 1.0;
+  double _holeStrength = 0.0;
   double _cardHeight = 320;
   Rect? _dockRect;
   Rect? _bellRect;
@@ -96,6 +97,10 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
   Tween<double>? _topTween;
   Tween<double>? _borderTween;
   Tween<double>? _scrimTween;
+  Tween<double>? _holeTween;
+
+  bool _hasHole(int step) =>
+      _steps[step].spotlight && step < _steps.length - 1;
 
   static const List<_StepSpec> _steps = [
     _StepSpec(
@@ -105,21 +110,10 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       spotlight: false,
     ),
     _StepSpec(
-      'Tap to jump',
-      'Tap any bubble and the selection pill glides over to it, opening that page.',
-      _buildTapArt,
+      'Tap or glide',
+      'Tap a bubble to open that page, or drag sideways along the dock — you will feel a little tick as you pass each one.',
+      _buildGlideArt,
       showOutline: false,
-    ),
-    _StepSpec(
-      'Or just glide across',
-      'Drag sideways along the dock — you will feel a little tick as you pass each page. Fling to travel further.',
-      _buildSwipeArt,
-      showOutline: false,
-    ),
-    _StepSpec(
-      'Find yourself instantly',
-      'The big colored bubble in the middle is the page you are on — its name sits right underneath it.',
-      _buildActiveArt,
     ),
     _StepSpec(
       'Watch for absences',
@@ -137,11 +131,8 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
 
   static Widget _buildWelcomeArt(BuildContext context) =>
       const _DockPreview(sweep: false);
-  static Widget _buildTapArt(BuildContext context) => const _TapRipple();
-  static Widget _buildSwipeArt(BuildContext context) =>
+  static Widget _buildGlideArt(BuildContext context) =>
       const _DockPreview(sweep: true);
-  static Widget _buildActiveArt(BuildContext context) =>
-      const _DockPreview(sweep: false, zoomLabel: true);
   static Widget _buildBellArt(BuildContext context) => const _BellWobble();
   static Widget _buildDoneArt(BuildContext context) => const _DoneCheck();
 
@@ -179,6 +170,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       _displayTop = _topTween?.evaluate(_moveCurved) ?? _displayTop;
       _borderScale = _borderTween?.evaluate(_moveCurved) ?? _borderScale;
       _scrimScale = _scrimTween?.evaluate(_moveCurved) ?? _scrimScale;
+      _holeStrength = _holeTween?.evaluate(_moveCurved) ?? _holeStrength;
     });
   }
 
@@ -214,8 +206,9 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       setState(() {
         _displayRect = _rectTargetFor(0, size);
         _displayTop = _topFor(0, size);
-        _borderScale = _steps[0].showOutline && _steps[0].spotlight ? 1.0 : 0.0;
+        _borderScale = 0.0;
         _scrimScale = 1.0;
+        _holeStrength = 0.0;
       });
     });
   }
@@ -239,13 +232,13 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       if (bell != null) _bellRect = bell;
     });
   }
-
   void _goToStep(int step) {
     HapticFeedback.selectionClick();
     final fromRect = _displayRect;
     final fromTop = _displayTop;
     final fromBorder = _borderScale;
     final fromScrim = _scrimScale;
+    final fromHole = _holeStrength;
     final prevStep = _step;
     setState(() => _step = step);
     _moveC.stop();
@@ -257,29 +250,32 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       final isLast = step >= _steps.length - 1;
       final toRect = _rectTargetFor(step, size);
       final toTop = _topFor(step, size);
-      final toBorder = isLast || !_steps[step].showOutline ? 0.0 : 1.0;
+      final toBorder =
+          isLast || !_steps[step].showOutline ? 0.0 : 1.0;
       final toScrim = isLast ? 0.0 : 1.0;
+      final toHole = _hasHole(step) ? 1.0 : 0.0;
 
-      if (fromRect == null || fromTop == null) {
+      void snap() {
         setState(() {
           _displayRect = toRect;
           _displayTop = toTop;
           _borderScale = toBorder;
           _scrimScale = toScrim;
+          _holeStrength = toHole;
         });
+      }
+
+      if (fromRect == null || fromTop == null) {
+        snap();
         return;
       }
       final moved = (fromRect.center.dy - toRect.center.dy).abs() > 1.0 ||
           (fromTop - toTop).abs() > 1.0 ||
           (fromScrim - toScrim).abs() > 0.01 ||
+          (fromHole - toHole).abs() > 0.01 ||
           prevStep == step;
       if (!moved) {
-        setState(() {
-          _displayRect = toRect;
-          _displayTop = toTop;
-          _borderScale = toBorder;
-          _scrimScale = toScrim;
-        });
+        snap();
         return;
       }
       setState(() {
@@ -287,6 +283,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
         _topTween = Tween<double>(begin: fromTop, end: toTop);
         _borderTween = Tween<double>(begin: fromBorder, end: toBorder);
         _scrimTween = Tween<double>(begin: fromScrim, end: toScrim);
+        _holeTween = Tween<double>(begin: fromHole, end: toHole);
       });
       _moveC.forward(from: 0);
     });
@@ -327,6 +324,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
               hole: rect,
               borderScale: _borderScale,
               scrimScale: _scrimScale,
+              holeStrength: _holeStrength,
             ),
           ),
         ),
@@ -475,21 +473,25 @@ class _SpotlightPainter extends CustomPainter {
     required this.hole,
     this.borderScale = 1.0,
     this.scrimScale = 1.0,
+    this.holeStrength = 1.0,
   });
 
   final Rect hole;
   final double borderScale;
   final double scrimScale;
+  final double holeStrength;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final inflated = hole.inflate(12);
+    final full = Offset.zero & size;
+    final effective = Rect.lerp(full, hole, holeStrength.clamp(0.0, 1.0))!;
+    final inflated = effective.inflate(12);
     final radius = Radius.circular(
       math.min(30.0, inflated.shortestSide * 0.38),
     );
     final rrect = RRect.fromRectAndRadius(inflated, radius);
 
-    final scrim = Path()..addRect(Offset.zero & size);
+    final scrim = Path()..addRect(full);
     final cutout = Path()..addRRect(rrect);
     canvas.drawPath(
       Path.combine(PathOperation.difference, scrim, cutout),
@@ -517,7 +519,8 @@ class _SpotlightPainter extends CustomPainter {
   bool shouldRepaint(covariant _SpotlightPainter oldDelegate) =>
       oldDelegate.hole != hole ||
       oldDelegate.borderScale != borderScale ||
-      oldDelegate.scrimScale != scrimScale;
+      oldDelegate.scrimScale != scrimScale ||
+      oldDelegate.holeStrength != holeStrength;
 }
 
 class _LoopingAnimation extends StatefulWidget {
@@ -569,9 +572,8 @@ class _LoopingAnimationState extends State<_LoopingAnimation>
 
 class _DockPreview extends StatelessWidget {
   final bool sweep;
-  final bool zoomLabel;
 
-  const _DockPreview({this.sweep = false, this.zoomLabel = false});
+  const _DockPreview({this.sweep = false});
 
   static const _icons = [
     Icons.people_outline_rounded,
@@ -654,9 +656,7 @@ class _DockPreview extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Opacity(
-                        opacity: zoomLabel && i == 1
-                            ? (0.55 + 0.45 * math.sin(t * 2 * math.pi)).clamp(0.0, 1.0)
-                            : (1.0 - (i - p).abs() * 2.2).clamp(0.0, 1.0),
+                        opacity: (1.0 - (i - p).abs() * 2.2).clamp(0.0, 1.0),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
@@ -707,66 +707,6 @@ class _DockPreview extends StatelessWidget {
       theme.colorScheme.onPrimary,
       f,
     )!;
-  }
-}
-
-class _TapRipple extends StatelessWidget {
-  const _TapRipple();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return _LoopingAnimation(
-      duration: const Duration(milliseconds: 1300),
-      builder: (context, t) {
-        return Center(
-          child: SizedBox(
-            width: 92,
-            height: 92,
-            child: Stack(
-              alignment: Alignment.center,
-              clipBehavior: Clip.none,
-              children: [
-                for (var k = 0; k < 2; k++)
-                  Container(
-                    width: 48 + ((t + k * 0.5) % 1.0) * 34,
-                    height: 48 + ((t + k * 0.5) % 1.0) * 34,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: scheme.primary.withAlpha(
-                          ((1 - ((t + k * 0.5) % 1.0)) * 140).round(),
-                        ),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: scheme.primary,
-                    boxShadow: [
-                      BoxShadow(
-                        color: scheme.primary.withAlpha(90),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.home_rounded,
-                    size: 22,
-                    color: scheme.onPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 }
 
