@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../services/etlab_api_service.dart';
 import '../widgets/page_header.dart';
+import 'notifications_screen.dart';
 
 class TeachersScreen extends StatelessWidget {
   final bool isTabMode;
@@ -18,7 +19,23 @@ class TeachersScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            PageHeader(title: 'Faculty'),
+            PageHeader(
+              title: 'Faculty',
+              actions: [
+                HeaderAction(
+                  icon: Icons.notifications_outlined,
+                  tooltip: 'Notifications',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationsScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
             Expanded(
               child: FutureBuilder<Map<String, dynamic>?>(
                 future: teachersData,

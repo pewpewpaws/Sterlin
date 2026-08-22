@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import '../widgets/floating_pill_nav_bar.dart';
 import 'attendance_screen.dart';
 import 'dashboard_screen.dart';
-import 'notifications_screen.dart';
 import 'settings_screen.dart';
 import 'teachers_screen.dart';
 
@@ -15,7 +14,7 @@ class MainNavigationShell extends StatefulWidget {
 }
 
 class _MainNavigationShellState extends State<MainNavigationShell> {
-  // Home is at index 2 (exact middle of 5 tabs)
+  // Notifications lives in the top bar of each page, not in the dock.
   int _currentIndex = 2;
   final Map<String, Widget> _cachedScreens = {};
 
@@ -39,12 +38,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       selectedIcon: Icons.home_rounded,
     ),
     NavDestinationItem(
-      id: 'notifications',
-      label: 'Notifs',
-      icon: Icons.notifications_outlined,
-      selectedIcon: Icons.notifications_rounded,
-    ),
-    NavDestinationItem(
       id: 'settings',
       label: 'Settings',
       icon: Icons.settings_outlined,
@@ -60,13 +53,17 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         case 'faculty':
           return const TeachersScreen(isTabMode: true);
         case 'home':
-          return DashboardScreen(key: DashboardScreen.dashboardKey, isTabMode: true);
-        case 'notifications':
-          return const NotificationsScreen();
+          return DashboardScreen(
+            key: DashboardScreen.dashboardKey,
+            isTabMode: true,
+          );
         case 'settings':
           return const SettingsScreen(isTabMode: true);
         default:
-          return DashboardScreen(key: DashboardScreen.dashboardKey, isTabMode: true);
+          return DashboardScreen(
+            key: DashboardScreen.dashboardKey,
+            isTabMode: true,
+          );
       }
     });
   }
@@ -82,7 +79,9 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         systemNavigationBarColor: theme.colorScheme.surface,
         systemNavigationBarDividerColor: Colors.transparent,
         systemNavigationBarContrastEnforced: false,
-        systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
