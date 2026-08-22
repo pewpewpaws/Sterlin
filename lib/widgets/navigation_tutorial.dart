@@ -10,9 +10,7 @@ class NavigationTutorial {
 
   static final GlobalKey navBarKey = GlobalKey();
   static final GlobalKey bellKey = GlobalKey();
-
   static const String _seenKey = 'app_nav_tutorial_seen';
-
   static final Completer<void> _firstRunCompleter = Completer<void>();
 
   static Future<void> get waitForFirstRun => _firstRunCompleter.future;
@@ -88,7 +86,6 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
   Rect? _bellRect;
 
   final GlobalKey _cardKey = GlobalKey();
-
   late final AnimationController _moveC = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 480),
@@ -201,13 +198,10 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
 
   Rect _rectTargetFor(int step, Size size) {
     if (!_steps[step].spotlight || step >= _steps.length - 1) {
-      return _expandingRect(size);
+      return Rect.fromCircle(center: size.center(Offset.zero), radius: size.longestSide * 0.75);
     }
     return _targetFor(step);
   }
-
-  Rect _expandingRect(Size size) =>
-      Rect.fromCircle(center: size.center(Offset.zero), radius: size.longestSide * 0.75);
 
   void _placeInitial() {
     _measure();
@@ -263,8 +257,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       final isLast = step >= _steps.length - 1;
       final toRect = _rectTargetFor(step, size);
       final toTop = _topFor(step, size);
-      final toBorder =
-          isLast || !_steps[step].showOutline ? 0.0 : 1.0;
+      final toBorder = isLast || !_steps[step].showOutline ? 0.0 : 1.0;
       final toScrim = isLast ? 0.0 : 1.0;
 
       if (fromRect == null || fromTop == null) {
@@ -463,7 +456,6 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
                         isLast
                             ? Icons.check_rounded
                             : Icons.arrow_forward_rounded,
-                        size: 18,
                       ),
                       label: Text(isLast ? 'Got it' : 'Next'),
                     ),
@@ -501,8 +493,7 @@ class _SpotlightPainter extends CustomPainter {
     final cutout = Path()..addRRect(rrect);
     canvas.drawPath(
       Path.combine(PathOperation.difference, scrim, cutout),
-      Paint()
-        ..color = Colors.black.withAlpha((153 * scrimScale).round()),
+      Paint()..color = Colors.black.withAlpha((153 * scrimScale).round()),
     );
 
     canvas.drawRRect(
@@ -529,22 +520,58 @@ class _SpotlightPainter extends CustomPainter {
       oldDelegate.scrimScale != scrimScale;
 }
 
-class _DockPreview extends StatefulWidget {
-  const _DockPreview({this.sweep = false, this.zoomLabel = false});
+class _LoopingAnimation extends StatefulWidget {
+  final Duration duration;
+  final bool reverse;
+  final Widget Function(BuildContext context, double value) builder;
 
-  final bool sweep;
-  final bool zoomLabel;
+  const _LoopingAnimation({
+    required this.duration,
+    this.reverse = false,
+    required this.builder,
+  });
 
   @override
-  State<_DockPreview> createState() => _DockPreviewState();
+  State<_LoopingAnimation> createState() => _LoopingAnimationState();
 }
 
-class _DockPreviewState extends State<_DockPreview>
+class _LoopingAnimationState extends State<_LoopingAnimation>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 3200),
+    duration: widget.duration,
   );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.reverse) {
+      _c.repeat(reverse: true);
+    } else {
+      _c.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) => widget.builder(context, _c.value),
+    );
+  }
+}
+
+class _DockPreview extends StatelessWidget {
+  final bool sweep;
+  final bool zoomLabel;
+
+  const _DockPreview({this.sweep = false, this.zoomLabel = false});
 
   static const _icons = [
     Icons.people_outline_rounded,
@@ -557,27 +584,14 @@ class _DockPreviewState extends State<_DockPreview>
   static const double _diameter = 42.0;
 
   @override
-  void initState() {
-    super.initState();
-    _c.repeat();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final width = _spacing * 3 + _diameter + 32;
 
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final t = _c.value;
-        final p = widget.sweep ? 1.5 + 1.45 * math.sin(t * 2 * math.pi) : 1.0;
+    return _LoopingAnimation(
+      duration: const Duration(milliseconds: 3200),
+      builder: (context, t) {
+        final p = sweep ? 1.5 + 1.45 * math.sin(t * 2 * math.pi) : 1.0;
 
         return SizedBox(
           width: width,
@@ -586,7 +600,7 @@ class _DockPreviewState extends State<_DockPreview>
             clipBehavior: Clip.none,
             alignment: Alignment.topCenter,
             children: [
-              if (widget.sweep) ...[
+              if (sweep) ...[
                 Positioned(
                   left: 0,
                   top: 8,
@@ -616,7 +630,7 @@ class _DockPreviewState extends State<_DockPreview>
                       Transform.scale(
                         scale: _scaleFor(i, p, t),
                         child: Opacity(
-                          opacity: _opacityFor(i, p),
+                          opacity: (1.0 - (i - p).abs() * 0.45).clamp(0.30, 1.0),
                           child: Container(
                             width: _diameter,
                             height: _diameter,
@@ -625,8 +639,7 @@ class _DockPreviewState extends State<_DockPreview>
                               color: _bubbleColor(theme, i, p),
                               border: Border.all(
                                 color: theme.colorScheme.primary.withAlpha(
-                                  ((1 - (i - p).abs()).clamp(0.0, 1.0) * 255)
-                                      .round(),
+                                  ((1 - (i - p).abs()).clamp(0.0, 1.0) * 255).round(),
                                 ),
                                 width: (i - p).abs() < 0.45 ? 2 : 1,
                               ),
@@ -641,18 +654,13 @@ class _DockPreviewState extends State<_DockPreview>
                       ),
                       const SizedBox(height: 4),
                       Opacity(
-                        opacity: widget.zoomLabel && i == 1
-                            ? (0.55 + 0.45 * math.sin(t * 2 * math.pi))
-                                .clamp(0.0, 1.0)
-                            : _labelOpacityFor(i, p),
+                        opacity: zoomLabel && i == 1
+                            ? (0.55 + 0.45 * math.sin(t * 2 * math.pi)).clamp(0.0, 1.0)
+                            : (1.0 - (i - p).abs() * 2.2).clamp(0.0, 1.0),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest
-                                .withAlpha(220),
+                            color: theme.colorScheme.surfaceContainerHighest.withAlpha(220),
                             borderRadius: BorderRadius.circular(9),
                           ),
                           child: Text(
@@ -679,15 +687,9 @@ class _DockPreviewState extends State<_DockPreview>
 
   double _scaleFor(int i, double p, double t) {
     final base = (1.24 - (i - p).abs() * 0.36).clamp(0.78, 1.24);
-    if (!widget.sweep) return base + math.sin(t * 2 * math.pi) * 0.02;
+    if (!sweep) return base + math.sin(t * 2 * math.pi) * 0.02;
     return base;
   }
-
-  double _opacityFor(int i, double p) =>
-      (1.0 - (i - p).abs() * 0.45).clamp(0.30, 1.0);
-
-  double _labelOpacityFor(int i, double p) =>
-      (1.0 - (i - p).abs() * 2.2).clamp(0.0, 1.0);
 
   Color _bubbleColor(ThemeData theme, int i, double p) {
     final dark = theme.brightness == Brightness.dark;
@@ -708,41 +710,15 @@ class _DockPreviewState extends State<_DockPreview>
   }
 }
 
-class _TapRipple extends StatefulWidget {
+class _TapRipple extends StatelessWidget {
   const _TapRipple();
 
   @override
-  State<_TapRipple> createState() => _TapRippleState();
-}
-
-class _TapRippleState extends State<_TapRipple>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1300),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _c.repeat();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final t = _c.value;
+    final scheme = Theme.of(context).colorScheme;
+    return _LoopingAnimation(
+      duration: const Duration(milliseconds: 1300),
+      builder: (context, t) {
         return Center(
           child: SizedBox(
             width: 92,
@@ -794,39 +770,16 @@ class _TapRippleState extends State<_TapRipple>
   }
 }
 
-class _BellWobble extends StatefulWidget {
+class _BellWobble extends StatelessWidget {
   const _BellWobble();
-
-  @override
-  State<_BellWobble> createState() => _BellWobbleState();
-}
-
-class _BellWobbleState extends State<_BellWobble>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1900),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _c.repeat();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final angle = math.sin(_c.value * 2 * math.pi) * 0.16;
+    return _LoopingAnimation(
+      duration: const Duration(milliseconds: 1900),
+      builder: (context, value) {
+        final angle = math.sin(value * 2 * math.pi) * 0.16;
         return Container(
           width: 58,
           height: 58,
@@ -848,39 +801,17 @@ class _BellWobbleState extends State<_BellWobble>
   }
 }
 
-class _DoneCheck extends StatefulWidget {
+class _DoneCheck extends StatelessWidget {
   const _DoneCheck();
-
-  @override
-  State<_DoneCheck> createState() => _DoneCheckState();
-}
-
-class _DoneCheckState extends State<_DoneCheck>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _c.repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final scale = 1.0 + 0.06 * math.sin(_c.value * math.pi);
+    return _LoopingAnimation(
+      duration: const Duration(milliseconds: 1200),
+      reverse: true,
+      builder: (context, value) {
+        final scale = 1.0 + 0.06 * math.sin(value * math.pi);
         return Transform.scale(
           scale: scale,
           child: Container(

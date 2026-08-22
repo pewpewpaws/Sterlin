@@ -60,48 +60,25 @@ class _AnimatedNavIconState extends State<AnimatedNavIcon> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    final t = (1.0 - widget.distance.clamp(0.0, 1.0));
-
     switch (widget.id) {
-      case 'notifications':
-        return _buildRingingBell(t);
       case 'settings':
-        return _buildSpinningGear(t);
+        return _buildSpinningGear();
       case 'attendance':
-        return _buildAnimatedBars(t);
+        return _buildAnimatedBars();
       case 'faculty':
-        return _buildAnimatedFaculty(t);
+        return _buildAnimatedFaculty();
       case 'home':
       default:
-        return _buildAnimatedHome(t);
+        return _buildAnimatedHome();
     }
   }
 
-  // 🔔 1. Notifications: Dynamic Ringing Bell Animation
-  Widget _buildRingingBell(double t) {
+  // ⚙️ Settings: Rotating Gear Animation
+  Widget _buildSpinningGear() {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        // Bell wobble physics
-        final wobble = math.sin(_controller.value * math.pi * 4) * (1.0 - _controller.value) * 0.35;
-        return Transform.rotate(
-          angle: wobble,
-          child: Icon(
-            widget.isSelected ? Icons.notifications_active_rounded : Icons.notifications_outlined,
-            size: widget.size,
-            color: widget.color,
-          ),
-        );
-      },
-    );
-  }
-
-  // ⚙️ 2. Settings: Rotating Gear Animation
-  Widget _buildSpinningGear(double t) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final angle = _controller.value * (math.pi / 2); // 90 deg spin on select
+        final angle = _controller.value * (math.pi / 2);
         return Transform.rotate(
           angle: angle,
           child: Icon(
@@ -114,8 +91,8 @@ class _AnimatedNavIconState extends State<AnimatedNavIcon> with SingleTickerProv
     );
   }
 
-  // 📊 3. Attendance: Staggered Growing Bar Chart Animation
-  Widget _buildAnimatedBars(double t) {
+  // 📊 Attendance: Staggered Growing Bar Chart Animation
+  Widget _buildAnimatedBars() {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -152,8 +129,8 @@ class _AnimatedNavIconState extends State<AnimatedNavIcon> with SingleTickerProv
     );
   }
 
-  // 👨‍🏫 4. Faculty: People Wave / Pop Animation
-  Widget _buildAnimatedFaculty(double t) {
+  // 👨‍🏫 Faculty: People Wave / Pop Animation
+  Widget _buildAnimatedFaculty() {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -174,12 +151,12 @@ class _AnimatedNavIconState extends State<AnimatedNavIcon> with SingleTickerProv
     );
   }
 
-  // 🏠 5. Home: Elastic Jump / Pulse Animation
-  Widget _buildAnimatedHome(double t) {
+  // 🏠 Home: Elastic Jump / Pulse Animation
+  Widget _buildAnimatedHome() {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final bounce = math.sin(_controller.value * math.pi) * -4.0; // Jump up 4px
+        final bounce = math.sin(_controller.value * math.pi) * -4.0;
         return Transform.translate(
           offset: Offset(0, bounce),
           child: Icon(
