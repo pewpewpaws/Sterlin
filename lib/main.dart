@@ -64,6 +64,8 @@ void main() async {
 class AIPApp extends StatelessWidget {
   const AIPApp({super.key});
 
+  static final Future<bool> _sessionFuture = EtlabApiService().initSession();
+
   @override
   Widget build(BuildContext context) {
     return DynamicColorBuilder(
@@ -80,7 +82,7 @@ class AIPApp extends StatelessWidget {
               theme: ts.getLightTheme(lightDynamic),
               darkTheme: ts.getDarkTheme(darkDynamic),
               home: FutureBuilder<bool>(
-                future: EtlabApiService().initSession(),
+                future: _sessionFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Scaffold(

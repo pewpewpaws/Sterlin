@@ -7,6 +7,7 @@ import '../services/notifications_service.dart';
 import '../widgets/todays_timetable.dart';
 import '../widgets/attendance_summary.dart';
 import '../widgets/next_class_card.dart';
+import '../widgets/navigation_tutorial.dart';
 import '../widgets/page_header.dart';
 import 'notifications_screen.dart';
 
@@ -37,19 +38,7 @@ extension DashboardWidgetTypeExtension on DashboardWidgetType {
 }
 
 class DashboardScreen extends StatefulWidget {
-  final bool isTabMode;
-  static final GlobalKey<DashboardScreenState> dashboardKey =
-      GlobalKey<DashboardScreenState>();
-
-  const DashboardScreen({super.key, this.isTabMode = false});
-
-  static void openWidgetCustomizer(BuildContext context) {
-    dashboardKey.currentState?._openWidgetCustomizer();
-  }
-
-  static Future<void> refreshDashboard(BuildContext context) async {
-    await dashboardKey.currentState?._refreshData();
-  }
+  const DashboardScreen({super.key});
 
   @override
   State<DashboardScreen> createState() => DashboardScreenState();
@@ -84,7 +73,10 @@ class DashboardScreenState extends State<DashboardScreen> {
       if (mounted && EtlabApiService().profileData != null) {
         _refreshData();
         BackgroundService.scheduleNextRefresh();
-        _checkAndPromptNotificationPermission();
+        NavigationTutorial.waitForFirstRun.then((_) async {
+          await Future.delayed(const Duration(milliseconds: 400));
+          if (mounted) await _checkAndPromptNotificationPermission();
+        });
       }
     });
   }
@@ -542,6 +534,7 @@ class DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(width: 10),
           HeaderAction(
+            key: NavigationTutorial.bellKey,
             icon: Icons.notifications_outlined,
             tooltip: 'Notifications',
             onTap: () {

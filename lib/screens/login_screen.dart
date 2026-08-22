@@ -16,16 +16,30 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _usernameFocusNode = FocusNode();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _numericRegister = true;
   String? _errorMessage;
 
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _usernameFocusNode.dispose();
     super.dispose();
+  }
+
+  void _toggleRegisterKeyboard() {
+    HapticFeedback.selectionClick();
+    setState(() => _numericRegister = !_numericRegister);
+    if (_usernameFocusNode.hasFocus) {
+      _usernameFocusNode.unfocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _usernameFocusNode.requestFocus();
+      });
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -239,11 +253,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           children: [
                             TextFormField(
                               controller: _usernameController,
+                              focusNode: _usernameFocusNode,
+                              autofocus: true,
                               autofillHints: const [
                                 AutofillHints.username,
                                 AutofillHints.email,
                               ],
-                              keyboardType: TextInputType.text,
+                              keyboardType: _numericRegister
+                                  ? TextInputType.number
+                                  : TextInputType.text,
                               textInputAction: TextInputAction.next,
                               style: theme.textTheme.bodyLarge,
                               decoration: _fieldDecoration(
@@ -252,6 +270,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                 prefixIcon: Icon(
                                   Icons.person_outline_rounded,
                                   color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _numericRegister
+                                        ? Icons.keyboard_alt_outlined
+                                        : Icons.dialpad_outlined,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  tooltip: _numericRegister
+                                      ? 'Use full keyboard'
+                                      : 'Use number pad',
+                                  onPressed: _toggleRegisterKeyboard,
                                 ),
                               ),
                               validator: (val) =>

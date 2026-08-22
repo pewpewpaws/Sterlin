@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/floating_pill_nav_bar.dart';
+import '../widgets/navigation_tutorial.dart';
 import 'attendance_screen.dart';
 import 'dashboard_screen.dart';
 import 'settings_screen.dart';
@@ -12,12 +13,39 @@ class MainNavigationShell extends StatefulWidget {
   @override
   State<MainNavigationShell> createState() => _MainNavigationShellState();
 }
-
-class _MainNavigationShellState extends State<MainNavigationShell> {
+class _MainNavigationShellState extends State<MainNavigationShell>
+    with SingleTickerProviderStateMixin {
   // Notifications lives in the top bar of each page, not in the dock.
   // Attendance sits right next to Home.
   int _currentIndex = 1;
   final Map<String, Widget> _cachedScreens = {};
+
+  late final AnimationController _swapC = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 200),
+    value: 1.0,
+  );
+  late final CurvedAnimation _swapFade =
+      CurvedAnimation(parent: _swapC, curve: Curves.easeOut);
+  late final Animation<Offset> _swapSlide = Tween<Offset>(
+    begin: const Offset(0, 0.02),
+    end: Offset.zero,
+  ).animate(_swapFade);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) NavigationTutorial.maybeShow(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    _swapC.dispose();
+    _swapFade.dispose();
+    super.dispose();
+  }
 
   static const List<NavDestinationItem> _allNavItems = [
     NavDestinationItem(
@@ -50,21 +78,15 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     return _cachedScreens.putIfAbsent(id, () {
       switch (id) {
         case 'attendance':
-          return const AttendanceScreen(isTabMode: true);
+          return const AttendanceScreen();
         case 'faculty':
-          return const TeachersScreen(isTabMode: true);
+          return const TeachersScreen();
         case 'home':
-          return DashboardScreen(
-            key: DashboardScreen.dashboardKey,
-            isTabMode: true,
-          );
+          return const DashboardScreen();
         case 'settings':
-          return const SettingsScreen(isTabMode: true);
+          return const SettingsScreen();
         default:
-          return DashboardScreen(
-            key: DashboardScreen.dashboardKey,
-            isTabMode: true,
-          );
+          return const DashboardScreen();
       }
     });
   }
@@ -87,9 +109,25 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
-        body: IndexedStack(
-          index: _currentIndex,
-          children: _allNavItems.map((item) => _getScreen(item.id)).toList(),
+        body: Stack(
+          children: [
+            for (var i = 0; i < _allNavItems.length; i++)
+              Offstage(
+                offstage: i != _currentIndex,
+                child: TickerMode(
+                  enabled: i == _currentIndex,
+                  child: i == _currentIndex
+                      ? FadeTransition(
+                          opacity: _swapFade,
+                          child: SlideTransition(
+                            position: _swapSlide,
+                            child: _getScreen(_allNavItems[i].id),
+                          ),
+                        )
+                      : _getScreen(_allNavItems[i].id),
+                ),
+              ),
+          ],
         ),
         bottomNavigationBar: isKeyboardOpen
             ? null
@@ -101,12 +139,14 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 20),
                     child: FloatingPillNavBar(
+                      key: NavigationTutorial.navBarKey,
                       selectedIndex: _currentIndex,
                       items: _allNavItems,
                       onDestinationSelected: (index) {
                         setState(() {
                           _currentIndex = index;
                         });
+                        _swapC.forward(from: 0);
                       },
                     ),
                   ),

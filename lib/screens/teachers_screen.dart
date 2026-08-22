@@ -5,8 +5,7 @@ import '../widgets/page_header.dart';
 import 'notifications_screen.dart';
 
 class TeachersScreen extends StatelessWidget {
-  final bool isTabMode;
-  const TeachersScreen({super.key, this.isTabMode = false});
+  const TeachersScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -109,7 +109,7 @@ class _FloatingPillNavBarState extends State<FloatingPillNavBar> with SingleTick
   }
 
   void _handleDragUpdate(DragUpdateDetails details) {
-    final deltaIndex = -details.delta.dx / _itemSpacing;
+    final deltaIndex = -details.delta.dx / (_itemSpacing * 1.75);
     final newPos = (_currentPosition + deltaIndex).clamp(0.0, (widget.items.length - 1).toDouble());
 
     final currentRounded = newPos.round();
@@ -126,7 +126,7 @@ class _FloatingPillNavBarState extends State<FloatingPillNavBar> with SingleTick
   void _handleDragEnd(DragEndDetails details) {
     // Convert fling velocity (pixels/sec) to item index shifts (flick left = positive target shift)
     final velocityX = details.primaryVelocity ?? details.velocity.pixelsPerSecond.dx;
-    final velocityBoost = (-velocityX / 500.0); // Momentum boost factor
+    final velocityBoost = (-velocityX / 900.0); // Momentum boost factor
 
     final projectedPosition = _currentPosition + velocityBoost;
     final targetIndex = projectedPosition.round().clamp(0, widget.items.length - 1);

@@ -7,8 +7,7 @@ import '../widgets/page_header.dart';
 import 'notifications_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
-  final bool isTabMode;
-  const AttendanceScreen({super.key, this.isTabMode = false});
+  const AttendanceScreen({super.key});
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();

@@ -164,13 +164,4 @@ class HomeWidgetService {
       debugPrint('[ERROR] clearWidgetData error: $e');
     }
   }
-
-  static Future<bool?> registerWidgetCallback(Function(Uri?) callback) async {
-    if (!kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.android ||
-            defaultTargetPlatform == TargetPlatform.iOS)) {
-      return await HomeWidget.registerInteractivityCallback(callback);
-    }
-    return false;
-  }
 }

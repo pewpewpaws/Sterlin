@@ -7,12 +7,12 @@ import '../services/notifications_service.dart';
 import '../services/theme_service.dart';
 import '../models/dashboard_data.dart';
 import '../widgets/attendance_summary.dart';
+import '../widgets/navigation_tutorial.dart';
 import '../widgets/page_header.dart';
 import 'notifications_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  final bool isTabMode;
-  const SettingsScreen({super.key, this.isTabMode = false});
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -709,6 +709,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 },
                               );
                             },
+                          ),
+                          const Divider(),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text(
+                              'How Navigation Works',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: const Text(
+                              'Replay the guided tour of the bottom dock.',
+                            ),
+                            trailing: const Icon(Icons.help_outline),
+                            onTap: () => NavigationTutorial.show(context),
                           ),
                         ],
                       ),
