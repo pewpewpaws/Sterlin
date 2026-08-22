@@ -15,16 +15,11 @@ class MainNavigationShell extends StatefulWidget {
 
 class _MainNavigationShellState extends State<MainNavigationShell> {
   // Notifications lives in the top bar of each page, not in the dock.
-  int _currentIndex = 2;
+  // Attendance sits right next to Home.
+  int _currentIndex = 1;
   final Map<String, Widget> _cachedScreens = {};
 
   static const List<NavDestinationItem> _allNavItems = [
-    NavDestinationItem(
-      id: 'attendance',
-      label: 'Attendance',
-      icon: Icons.analytics_outlined,
-      selectedIcon: Icons.analytics_rounded,
-    ),
     NavDestinationItem(
       id: 'faculty',
       label: 'Faculty',
@@ -36,6 +31,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       label: 'Home',
       icon: Icons.home_outlined,
       selectedIcon: Icons.home_rounded,
+    ),
+    NavDestinationItem(
+      id: 'attendance',
+      label: 'Attendance',
+      icon: Icons.analytics_outlined,
+      selectedIcon: Icons.analytics_rounded,
     ),
     NavDestinationItem(
       id: 'settings',
