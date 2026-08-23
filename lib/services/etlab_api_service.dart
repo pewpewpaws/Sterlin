@@ -20,6 +20,7 @@ class EtlabApiService {
   static const String _keyProfileData = 'etlab_profile_data';
   static const String _keyAttendanceData = 'etlab_attendance_data';
   static const String _keyTeachersData = 'etlab_teachers_data';
+  static const String _keyTeachersFetchedAt = 'etlab_teachers_fetched_at';
   static const String _keySemesterData = 'etlab_semester_data';
   static const String _keyTargetAttendancePct = 'etlab_target_attendance_pct';
   static const String _keyIsLoggedIn = 'etlab_is_logged_in';
@@ -31,6 +32,7 @@ class EtlabApiService {
   Map<String, dynamic>? _profileData;
   Map<String, dynamic>? _attendanceData;
   Map<String, dynamic>? _teachersData;
+  DateTime? _teachersFetchedAt;
   List<dynamic>? _semesterListData;
   double _targetAttendancePct = 0.75;
   final Map<String, Map<String, dynamic>> _monthMemoryCache = {};
@@ -41,6 +43,13 @@ class EtlabApiService {
   Map<String, dynamic>? get profileData => _profileData;
   Map<String, dynamic>? get attendanceData => _attendanceData;
   Map<String, dynamic>? get teachersData => _teachersData;
+
+  static const Duration teachersCacheTtl = Duration(days: 14);
+
+  bool get teachersCacheFresh =>
+      _teachersData != null &&
+      _teachersFetchedAt != null &&
+      DateTime.now().difference(_teachersFetchedAt!) < teachersCacheTtl;
   List<dynamic>? get semesterListData => _semesterListData;
   double get targetAttendancePct => _targetAttendancePct;
 
@@ -111,6 +120,10 @@ class EtlabApiService {
       if (teachersJson != null && teachersJson.isNotEmpty) {
         _teachersData = jsonDecode(teachersJson) as Map<String, dynamic>?;
       }
+      final fetchedAt = prefs.getInt(_keyTeachersFetchedAt);
+      if (fetchedAt != null) {
+        _teachersFetchedAt = DateTime.fromMillisecondsSinceEpoch(fetchedAt);
+      }
 
       final semesterJson = prefs.getString(_keySemesterData);
       if (semesterJson != null && semesterJson.isNotEmpty) {
@@ -166,6 +179,12 @@ class EtlabApiService {
       }
       if (_teachersData != null) {
         await prefs.setString(_keyTeachersData, jsonEncode(_teachersData));
+        if (_teachersFetchedAt != null) {
+          await prefs.setInt(
+            _keyTeachersFetchedAt,
+            _teachersFetchedAt!.millisecondsSinceEpoch,
+          );
+        }
       }
       if (_semesterListData != null) {
         await prefs.setString(_keySemesterData, jsonEncode(_semesterListData));
@@ -334,6 +353,7 @@ class EtlabApiService {
         final data = jsonDecode(response.body);
         if (data is Map<String, dynamic>) {
           _teachersData = data;
+          _teachersFetchedAt = DateTime.now();
           await _saveSessionData();
           return data;
         }
@@ -543,7 +563,7 @@ class EtlabApiService {
     final List<Future> fetchTasks = [
       fetchProfile(),
       fetchAttendanceBySubject(),
-      fetchTeachers(),
+      if (!teachersCacheFresh) fetchTeachers(),
       fetchSemesterList(),
       fetchAttendanceByDayPeriod(month: currentMonth, year: currentYear),
     ];
@@ -605,6 +625,7 @@ class EtlabApiService {
       await prefs.remove(_keyProfileData);
       await prefs.remove(_keyAttendanceData);
       await prefs.remove(_keyTeachersData);
+      await prefs.remove(_keyTeachersFetchedAt);
       await prefs.remove(_keySemesterData);
       await prefs.remove(_keyTargetAttendancePct);
       await prefs.remove(_keyCalendarIndex);
@@ -630,6 +651,8 @@ class EtlabApiService {
     _profileData = null;
     _attendanceData = null;
     _teachersData = null;
+    _teachersFetchedAt = null;
+    _teachersFetchedAt = null;
     _semesterListData = null;
     _monthMemoryCache.clear();
 
