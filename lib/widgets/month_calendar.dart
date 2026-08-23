@@ -721,7 +721,10 @@ class _DaySheet extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               if (isHoliday)
-                _HolidayCard(reason: dayData['holiday_reason']?.toString())
+                _HolidayCard(
+                  date: date,
+                  reason: dayData['holiday_reason']?.toString(),
+                )
               else if (periods.isEmpty)
                 Text(
                   'No recorded classes.',
@@ -879,14 +882,19 @@ class _PeriodRow extends StatelessWidget {
 }
 
 class _HolidayCard extends StatelessWidget {
+  final DateTime date;
   final String? reason;
 
-  const _HolidayCard({this.reason});
+  const _HolidayCard({required this.date, this.reason});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final palette = _StatusPalette.of(theme);
+    final now = DateTime.now();
+    final isToday =
+        date.year == now.year && date.month == now.month && date.day == now.day;
+    final label = isToday ? 'No classes today' : 'No classes on this day';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -905,7 +913,7 @@ class _HolidayCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('No classes today', style: theme.textTheme.titleSmall),
+                Text(label, style: theme.textTheme.titleSmall),
                 if (reason != null && reason!.isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text(reason!, style: theme.textTheme.bodySmall),
