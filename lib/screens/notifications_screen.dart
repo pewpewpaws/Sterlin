@@ -35,6 +35,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // The user must manually dismiss them.
   }
 
+  void _openAttendance(String subject) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AttendanceScreen(highlightSubject: subject),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -108,79 +117,82 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 width: 1,
                               ),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      CircleAvatar(
-                                        radius: 16,
-                                        backgroundColor:
-                                            theme.colorScheme.errorContainer,
-                                        child: Icon(
-                                          Icons.warning_amber_rounded,
-                                          color: theme
-                                              .colorScheme
-                                              .onErrorContainer,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () =>
+                                  _openAttendance(subject.toString()),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 16,
+                                          backgroundColor:
+                                              theme.colorScheme.errorContainer,
+                                          child: Icon(
+                                            Icons.warning_amber_rounded,
+                                            color: theme
+                                                .colorScheme
+                                                .onErrorContainer,
+                                            size: 18,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Absence Detected',
+                                          style: theme.textTheme.titleMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                color: theme.colorScheme.error,
+                                              ),
+                                        ),
+                                        const Spacer(),
+                                        Text(
+                                          date,
+                                          style: theme.textTheme.bodySmall
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      subject,
+                                      style: theme.textTheme.titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Period / Hour: $hour',
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: FilledButton.tonalIcon(
+                                        onPressed: () => _openAttendance(
+                                          subject.toString(),
+                                        ),
+                                        icon: const Icon(
+                                          Icons.analytics_outlined,
                                           size: 18,
                                         ),
+                                        label: const Text('View Attendance'),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'Absence Detected',
-                                        style: theme.textTheme.titleMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              color: theme.colorScheme.error,
-                                            ),
-                                      ),
-                                      const Spacer(),
-                                      Text(
-                                        date,
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    subject,
-                                    style: theme.textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.w600,
                                     ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Period / Hour: $hour',
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: FilledButton.tonalIcon(
-                                      onPressed: () {
-                                        Navigator.pushReplacement(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const AttendanceScreen(),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(
-                                        Icons.analytics_outlined,
-                                        size: 18,
-                                      ),
-                                      label: const Text('View Attendance'),
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),

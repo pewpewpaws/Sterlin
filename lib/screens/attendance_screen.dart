@@ -8,202 +8,73 @@ import 'notifications_screen.dart';
 import 'profile_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
-  const AttendanceScreen({super.key});
+  final String? highlightSubject;
+
+  const AttendanceScreen({super.key, this.highlightSubject});
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  String? _selectedSemId;
-  String? _selectedSemLabel;
-  bool _isLoadingSemester = false;
-  Map<String, dynamic>? _semesterSubjectsData;
-
-  @override
-  void initState() {
-    super.initState();
-    final api = EtlabApiService();
-    _semesterSubjectsData = api.attendanceData ?? api.profileData;
-    _fetchSemesters();
-  }
-
-  Future<void> _fetchSemesters() async {
-    final api = EtlabApiService();
-    if (api.semesterListData == null) {
-      await api.fetchSemesterList();
-      if (mounted) setState(() {});
-    }
-  }
-
-  ({String? id, String label, int num}) _getCurrentSemesterInfo() {
+  String _currentSemesterLabel() {
     final profile = EtlabApiService().profileData;
-    if (profile == null) {
-      return (id: null, label: 'Semester 5 (Current)', num: 5);
-    }
+    if (profile == null) return 'Current Semester';
 
     final data =
         profile['student'] ?? profile['profile'] ?? profile['data'] ?? profile;
-    final semId =
-        (data['sem_id'] ?? data['semester_id'] ?? data['current_sem_id'])
-            ?.toString();
     final semName =
-        (data['semester'] ??
+        (data['curnt_sem'] ??
+                data['semester'] ??
                 data['sem'] ??
-                data['semester_name'] ??
-                data['current_semester'])
-            ?.toString();
+                data['semester_name'])
+            ?.toString()
+            .trim();
+    if (semName != null && semName.isNotEmpty) return semName;
 
-    final semNum =
-        int.tryParse(
-          RegExp(r'\d+').firstMatch(semName ?? semId ?? '')?.group(0) ?? '',
+    final semNum = int.tryParse(
+          RegExp(r'\d+')
+              .firstMatch(
+                (data['sem_id'] ?? data['semester_id'] ?? '').toString(),
+              )
+              ?.group(0) ??
+            '',
         ) ??
         5;
-    return (id: semId, label: semName ?? 'Semester $semNum', num: semNum);
+    return 'Semester $semNum';
   }
 
-  Future<void> _changeSemester(String? semId, String? label) async {
-    if (_selectedSemId == semId) return;
-
-    final api = EtlabApiService();
-
-    Map<String, dynamic>? cachedData;
-    if (semId != null) {
-      cachedData = await api.getCachedSemesterAttendance(semId);
-    }
-
-    if (cachedData != null && mounted) {
-      setState(() {
-        _selectedSemId = semId;
-        _selectedSemLabel = label;
-        _semesterSubjectsData = cachedData;
-        _isLoadingSemester = false;
-      });
-    } else {
-      setState(() {
-        _selectedSemId = semId;
-        _selectedSemLabel = label;
-        _isLoadingSemester = true;
-      });
-    }
-
-    try {
-      final res = await api.fetchAttendanceBySubject(semester: semId);
-
-      if (!mounted) return;
-
-      if (res != null) {
-        if (semId != null) {
-          await api.cacheSemesterAttendance(semId, res);
-        }
-        setState(() {
-          _semesterSubjectsData = res;
-          _isLoadingSemester = false;
-        });
-      } else if (cachedData == null) {
-        setState(() {
-          _isLoadingSemester = false;
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      if (cachedData == null) {
-        setState(() {
-          _isLoadingSemester = false;
-        });
-      }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+  Future<void> _refreshCurrentSemester() async {
+    await EtlabApiService().fetchAttendanceBySubject();
+    if (mounted) setState(() {});
   }
 
   Widget _buildSubjectwiseTab(ThemeData theme) {
     final api = EtlabApiService();
-    final rawSemList = api.semesterListData ?? [];
-    final subjectsData =
-        _semesterSubjectsData ?? api.attendanceData ?? api.profileData;
+    final subjectsData = api.attendanceData ?? api.profileData;
     final attendanceList = DashboardDataMapper.parseAttendanceFromSubjects(
       subjectsData,
     );
+    final semLabel = _currentSemesterLabel();
 
-    final currentSemInfo = _getCurrentSemesterInfo();
-    final List<({String id, String label, bool isCurrent})> options = [];
-
-    if (rawSemList.isNotEmpty) {
-      for (int i = 0; i < rawSemList.length; i++) {
-        final item = rawSemList[i] is Map<String, dynamic>
-            ? (rawSemList[i] as Map<String, dynamic>)
-            : <String, dynamic>{};
-        final id =
-            (item['sem_id'] ?? item['id'] ?? item['semester_id'] ?? '${i + 1}')
-                .toString();
-        final labelStr =
-            (item['semester'] ??
-                    item['semester_name'] ??
-                    item['name'] ??
-                    'Semester ${i + 1}')
-                .toString();
-        final itemNum =
-            int.tryParse(
-              RegExp(
-                    r'\d+',
-                  ).firstMatch(labelStr.isNotEmpty ? labelStr : id)?.group(0) ??
-                  '',
-            ) ??
-            (i + 1);
-
-        if (itemNum > currentSemInfo.num) continue;
-
-        final isCurrent =
-            (currentSemInfo.id != null && id == currentSemInfo.id) ||
-            itemNum == currentSemInfo.num;
-        options.add((
-          id: id,
-          label: isCurrent ? '$labelStr (Current)' : labelStr,
-          isCurrent: isCurrent,
-        ));
-      }
-    }
-
-    if (options.isEmpty) {
-      for (int semNum = 1; semNum <= currentSemInfo.num; semNum++) {
-        final isCurrent = (semNum == currentSemInfo.num);
-        options.add((
-          id: semNum.toString(),
-          label: isCurrent ? 'Semester $semNum (Current)' : 'Semester $semNum',
-          isCurrent: isCurrent,
-        ));
-      }
-    }
-
-    final currentOption = options.firstWhere(
-      (o) => o.isCurrent,
-      orElse: () => options.last,
-    );
-    final activeId = _selectedSemId ?? currentOption.id;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            elevation: 0,
-            color: theme.colorScheme.surfaceContainerLow,
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: theme.colorScheme.outlineVariant.withAlpha(100),
+    return RefreshIndicator(
+      onRefresh: _refreshCurrentSemester,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withAlpha(100),
+                ),
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
                   Icon(
@@ -212,92 +83,93 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     color: theme.colorScheme.primary,
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    'SEMESTER',
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.1,
+                  Expanded(
+                    child: Text(
+                      semLabel,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: activeId,
-                        isExpanded: true,
-                        icon: Icon(
-                          Icons.arrow_drop_down,
-                          color: theme.colorScheme.primary,
-                        ),
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                        items: options.map((opt) {
-                          return DropdownMenuItem<String>(
-                            value: opt.id,
-                            child: Text(opt.label),
-                          );
-                        }).toList(),
-                        onChanged: (newId) {
-                          if (newId == null) return;
-                          final match = options.firstWhere(
-                            (o) => o.id == newId,
-                          );
-                          _changeSemester(
-                            match.isCurrent ? null : newId,
-                            match.label,
-                          );
-                        },
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'CURRENT',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          if (_isLoadingSemester)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 36),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (attendanceList.isEmpty)
-            Card(
-              elevation: 0,
-              color: theme.colorScheme.surfaceContainerLow,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: Text(
-                    'No attendance data found for ${_selectedSemLabel ?? "selected semester"}.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+            if (attendanceList.isEmpty)
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceContainerLow,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: theme.colorScheme.outlineVariant.withAlpha(100),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.analytics_outlined,
+                          size: 40,
+                          color: theme.colorScheme.outline,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No attendance records yet.',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Pull down to refresh.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+              )
+            else
+              AttendanceSummaryWidget(
+                attendanceList: attendanceList,
+                dutyLeaveCountsAsPresent: true,
+                highlightSubject: widget.highlightSubject,
+                onTargetChanged: () {
+                  setState(() {});
+                },
               ),
-            )
-          else
-            AttendanceSummaryWidget(
-              attendanceList: attendanceList,
-              dutyLeaveCountsAsPresent: true,
-              onTargetChanged: () {
-                setState(() {});
-              },
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -331,19 +203,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 ],
               ),
               Expanded(
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 640),
-                    child: TabBarView(
-                      children: [
-                        // Tab 1: Subjectwise Attendance
-                        _buildSubjectwiseTab(theme),
-                        // Tab 2: Dynamic Attendance Calendar View
-                        const MonthCalendar(),
-                      ],
-                    ),
-                  ),
+                child: TabBarView(
+                  children: [
+                    _buildSubjectwiseTab(Theme.of(context)),
+                    const MonthCalendar(),
+                  ],
                 ),
               ),
             ],
