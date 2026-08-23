@@ -10,7 +10,9 @@ class NavigationTutorial {
 
   static final GlobalKey navBarKey = GlobalKey();
   static final GlobalKey bellKey = GlobalKey();
+
   static const String _seenKey = 'app_nav_tutorial_seen';
+
   static final Completer<void> _firstRunCompleter = Completer<void>();
 
   static Future<void> get waitForFirstRun => _firstRunCompleter.future;
@@ -19,44 +21,57 @@ class NavigationTutorial {
     if (!_firstRunCompleter.isCompleted) _firstRunCompleter.complete();
   }
 
+  static final ValueNotifier<int> lastTabIndex = ValueNotifier(-1);
+
+  static void reportTab(int index) {
+    NavigationTutorial.lastTabIndex.value = index;
+  }
+
   static Future<void> maybeShow(BuildContext context) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool(_seenKey) ?? false) return;
+      if (prefs.getBool(_seenKey) ?? false) {
+        _completeFirstRun();
+        return;
+      }
 
       await Future.delayed(const Duration(milliseconds: 800));
       await prefs.setBool(_seenKey, true);
       if (!context.mounted) return;
-      await show(context);
-    } catch (_) {} finally {
+      show(context);
+    } catch (_) {
       _completeFirstRun();
     }
   }
 
-  static Future<void> show(BuildContext context) async {
-    await Navigator.of(context, rootNavigator: true).push(
-      PageRouteBuilder<void>(
-        opaque: false,
-        barrierDismissible: false,
-        transitionDuration: const Duration(milliseconds: 320),
-        reverseTransitionDuration: const Duration(milliseconds: 220),
-        pageBuilder: (_, _, _) => const _TutorialOverlay(),
-        transitionsBuilder: (_, animation, _, child) => FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: child,
-        ),
+  static void show(BuildContext context) {
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    final overlayState = rootNav.overlay;
+    if (overlayState == null) return;
+
+    OverlayEntry? entry;
+    entry = OverlayEntry(
+      builder: (_) => _TutorialOverlay(
+        onClose: () {
+          entry?.remove();
+          _completeFirstRun();
+        },
       ),
     );
+    overlayState.insert(entry);
   }
 }
+
+enum _StepAction { none, tapAnyBubble, glide }
 
 class _StepSpec {
   final String title;
   final String body;
-  final WidgetBuilder art;
+  final WidgetBuilder? art;
   final bool targetBell;
   final bool showOutline;
   final bool spotlight;
+  final _StepAction action;
   const _StepSpec(
     this.title,
     this.body,
@@ -64,11 +79,14 @@ class _StepSpec {
     this.targetBell = false,
     this.showOutline = true,
     this.spotlight = true,
+    this.action = _StepAction.none,
   });
 }
 
 class _TutorialOverlay extends StatefulWidget {
-  const _TutorialOverlay();
+  const _TutorialOverlay({required this.onClose});
+
+  final VoidCallback onClose;
 
   @override
   State<_TutorialOverlay> createState() => _TutorialOverlayState();
@@ -82,9 +100,11 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
   double _borderScale = 0.0;
   double _scrimScale = 1.0;
   double _holeStrength = 0.0;
-  double _cardHeight = 320;
+  double _cardHeight = 260;
   Rect? _dockRect;
   Rect? _bellRect;
+  int _tabBaseline = -1;
+  bool _advancing = false;
 
   final GlobalKey _cardKey = GlobalKey();
   late final AnimationController _moveC = AnimationController(
@@ -106,14 +126,22 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     _StepSpec(
       'Welcome to Sterlin!',
       'Everything lives behind this little dock at the bottom of the screen. Here is the 20-second tour.',
-      _buildWelcomeArt,
+      null,
       spotlight: false,
     ),
     _StepSpec(
-      'Tap or glide',
-      'Tap a bubble to open that page, or drag sideways along the dock — you will feel a little tick as you pass each one.',
-      _buildGlideArt,
+      'Tap a bubble',
+      'Go ahead — tap any bubble on the dock to open its page.',
+      null,
       showOutline: false,
+      action: _StepAction.tapAnyBubble,
+    ),
+    _StepSpec(
+      'Now glide',
+      'Drag sideways across the dock and let go on another page.',
+      null,
+      showOutline: false,
+      action: _StepAction.glide,
     ),
     _StepSpec(
       'Watch for absences',
@@ -129,10 +157,6 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     ),
   ];
 
-  static Widget _buildWelcomeArt(BuildContext context) =>
-      const _DockPreview(sweep: false);
-  static Widget _buildGlideArt(BuildContext context) =>
-      const _DockPreview(sweep: true);
   static Widget _buildBellArt(BuildContext context) => const _BellWobble();
   static Widget _buildDoneArt(BuildContext context) => const _DoneCheck();
 
@@ -160,6 +184,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
   void initState() {
     super.initState();
     _moveC.addListener(_onMoveTick);
+    NavigationTutorial.lastTabIndex.addListener(_onTabSignal);
     WidgetsBinding.instance.addPostFrameCallback((_) => _placeInitial());
   }
 
@@ -171,6 +196,27 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       _borderScale = _borderTween?.evaluate(_moveCurved) ?? _borderScale;
       _scrimScale = _scrimTween?.evaluate(_moveCurved) ?? _scrimScale;
       _holeStrength = _holeTween?.evaluate(_moveCurved) ?? _holeStrength;
+    });
+  }
+
+  void _onTabSignal() {
+    if (!mounted || _advancing) return;
+    final spec = _steps[_step];
+    if (spec.action == _StepAction.none) return;
+    final value = NavigationTutorial.lastTabIndex.value;
+    if (value < 0 || value == _tabBaseline) return;
+    _completeActionStep();
+  }
+
+  void _completeActionStep() {
+    if (_advancing) return;
+    _advancing = true;
+    HapticFeedback.mediumImpact();
+    Future.delayed(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      _advancing = false;
+      if (_steps[_step].action == _StepAction.none) return;
+      _goToStep(_step + 1);
     });
   }
 
@@ -190,7 +236,10 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
 
   Rect _rectTargetFor(int step, Size size) {
     if (!_steps[step].spotlight || step >= _steps.length - 1) {
-      return Rect.fromCircle(center: size.center(Offset.zero), radius: size.longestSide * 0.75);
+      return Rect.fromCircle(
+        center: size.center(Offset.zero),
+        radius: size.longestSide * 0.75,
+      );
     }
     return _targetFor(step);
   }
@@ -209,6 +258,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
         _borderScale = 0.0;
         _scrimScale = 1.0;
         _holeStrength = 0.0;
+        _tabBaseline = NavigationTutorial.lastTabIndex.value;
       });
     });
   }
@@ -232,6 +282,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       if (bell != null) _bellRect = bell;
     });
   }
+
   void _goToStep(int step) {
     HapticFeedback.selectionClick();
     final fromRect = _displayRect;
@@ -250,10 +301,10 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       final isLast = step >= _steps.length - 1;
       final toRect = _rectTargetFor(step, size);
       final toTop = _topFor(step, size);
-      final toBorder =
-          isLast || !_steps[step].showOutline ? 0.0 : 1.0;
+      final toBorder = isLast || !_steps[step].showOutline ? 0.0 : 1.0;
       final toScrim = isLast ? 0.0 : 1.0;
       final toHole = _hasHole(step) ? 1.0 : 0.0;
+      _tabBaseline = NavigationTutorial.lastTabIndex.value;
 
       void snap() {
         setState(() {
@@ -291,7 +342,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
 
   void _next() {
     if (_step >= _steps.length - 1) {
-      Navigator.of(context).pop();
+      _close();
       return;
     }
     _goToStep(_step + 1);
@@ -302,44 +353,97 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     _goToStep(_step - 1);
   }
 
+  void _close() {
+    HapticFeedback.lightImpact();
+    widget.onClose();
+  }
+
   @override
   void dispose() {
+    NavigationTutorial.lastTabIndex.removeListener(_onTabSignal);
     _moveC.dispose();
     _moveCurved.dispose();
     super.dispose();
   }
 
+  List<Widget> _blockers(Size size) {
+    Widget block(Rect r) => Positioned.fromRect(
+          rect: r,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {},
+          ),
+        );
+
+    final interactive = _steps[_step].action != _StepAction.none;
+    final rect = _displayRect;
+    if (!interactive || rect == null || !_hasHole(_step)) {
+      return [block(Rect.fromLTWH(0, 0, size.width, size.height))];
+    }
+
+    final hole = rect.inflate(12);
+    final w = size.width;
+    final h = size.height;
+    return [
+      block(Rect.fromLTWH(0, 0, w, math.max(0, hole.top))),
+      block(Rect.fromLTWH(0, hole.bottom, w, math.max(0, h - hole.bottom))),
+      block(Rect.fromLTWH(0, hole.top, math.max(0, hole.left), hole.height)),
+      block(
+        Rect.fromLTWH(
+          hole.right,
+          hole.top,
+          math.max(0, w - hole.right),
+          hole.height,
+        ),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
     final rect = _displayRect;
     final top = _displayTop;
-    if (rect == null || top == null) return const SizedBox.expand();
 
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: CustomPaint(
-            painter: _SpotlightPainter(
-              hole: rect,
-              borderScale: _borderScale,
-              scrimScale: _scrimScale,
-              holeStrength: _holeStrength,
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+      builder: (context, entrance, _) => Opacity(
+        opacity: entrance,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  painter: rect == null
+                      ? null
+                      : _SpotlightPainter(
+                          hole: rect,
+                          borderScale: _borderScale,
+                          scrimScale: _scrimScale,
+                          holeStrength: _holeStrength,
+                        ),
+                ),
+              ),
             ),
-          ),
+            ..._blockers(size),
+            if (rect != null && top != null)
+              Positioned(
+                left: 20,
+                right: 20,
+                top: top,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: _buildCard(theme),
+                  ),
+                ),
+              ),
+          ],
         ),
-        Positioned(
-          left: 20,
-          right: 20,
-          top: top,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: _buildCard(theme),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -347,6 +451,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     final scheme = theme.colorScheme;
     final spec = _steps[_step];
     final isLast = _step == _steps.length - 1;
+    final isAction = spec.action != _StepAction.none;
 
     return Container(
       key: _cardKey,
@@ -384,12 +489,14 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
               key: ValueKey(_step),
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
-                  height: 96,
-                  width: double.infinity,
-                  child: Center(child: spec.art(context)),
-                ),
-                const SizedBox(height: 10),
+                if (spec.art != null) ...[
+                  SizedBox(
+                    height: 96,
+                    width: double.infinity,
+                    child: Center(child: spec.art!(context)),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 Text(
                   spec.title,
                   textAlign: TextAlign.center,
@@ -416,16 +523,24 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
                 Expanded(
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: _step == 0
+                    child: isAction
                         ? TextButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: _close,
                             child: const Text('Skip'),
                           )
-                        : TextButton.icon(
-                            onPressed: _back,
-                            icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                            label: const Text('Back'),
-                          ),
+                        : (_step == 0
+                              ? TextButton(
+                                  onPressed: _close,
+                                  child: const Text('Skip'),
+                                )
+                              : TextButton.icon(
+                                  onPressed: _back,
+                                  icon: const Icon(
+                                    Icons.arrow_back_rounded,
+                                    size: 18,
+                                  ),
+                                  label: const Text('Back'),
+                                )),
                   ),
                 ),
                 ...List.generate(_steps.length, (i) {
@@ -445,24 +560,73 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
                 Expanded(
                   child: Align(
                     alignment: Alignment.centerRight,
-                    child: FilledButton.icon(
-                      onPressed: _next,
-                      style: FilledButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      icon: Icon(
-                        isLast
-                            ? Icons.check_rounded
-                            : Icons.arrow_forward_rounded,
-                      ),
-                      label: Text(isLast ? 'Got it' : 'Next'),
-                    ),
+                    child: isAction
+                        ? _WaitingPulse(color: scheme.primary)
+                        : FilledButton.icon(
+                            onPressed: _next,
+                            style: FilledButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            icon: Icon(
+                              isLast
+                                  ? Icons.check_rounded
+                                  : Icons.arrow_forward_rounded,
+                            ),
+                            label: Text(isLast ? 'Got it' : 'Next'),
+                          ),
                   ),
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _WaitingPulse extends StatefulWidget {
+  final Color color;
+  const _WaitingPulse({required this.color});
+
+  @override
+  State<_WaitingPulse> createState() => _WaitingPulseState();
+}
+
+class _WaitingPulseState extends State<_WaitingPulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) => Opacity(
+        opacity: 0.45 + 0.55 * _c.value,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.arrow_downward_rounded, size: 16, color: widget.color),
+            const SizedBox(width: 4),
+            Text(
+              'Your turn',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: widget.color,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -491,12 +655,18 @@ class _SpotlightPainter extends CustomPainter {
     );
     final rrect = RRect.fromRectAndRadius(inflated, radius);
 
-    final scrim = Path()..addRect(full);
-    final cutout = Path()..addRRect(rrect);
-    canvas.drawPath(
-      Path.combine(PathOperation.difference, scrim, cutout),
-      Paint()..color = Colors.black.withAlpha((153 * scrimScale).round()),
-    );
+    final scrimPaint = Paint()
+      ..color = Colors.black.withAlpha((153 * scrimScale).round());
+    if (holeStrength <= 0.001) {
+      canvas.drawRect(full, scrimPaint);
+    } else {
+      final scrim = Path()..addRect(full);
+      final cutout = Path()..addRRect(rrect);
+      canvas.drawPath(
+        Path.combine(PathOperation.difference, scrim, cutout),
+        scrimPaint,
+      );
+    }
 
     canvas.drawRRect(
       rrect,
@@ -567,146 +737,6 @@ class _LoopingAnimationState extends State<_LoopingAnimation>
       animation: _c,
       builder: (context, _) => widget.builder(context, _c.value),
     );
-  }
-}
-
-class _DockPreview extends StatelessWidget {
-  final bool sweep;
-
-  const _DockPreview({this.sweep = false});
-
-  static const _icons = [
-    Icons.people_outline_rounded,
-    Icons.home_outlined,
-    Icons.analytics_outlined,
-    Icons.settings_outlined,
-  ];
-  static const _labels = ['Faculty', 'Home', 'Attendance', 'Settings'];
-  static const double _spacing = 58.0;
-  static const double _diameter = 42.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final width = _spacing * 3 + _diameter + 32;
-
-    return _LoopingAnimation(
-      duration: const Duration(milliseconds: 3200),
-      builder: (context, t) {
-        final p = sweep ? 1.5 + 1.45 * math.sin(t * 2 * math.pi) : 1.0;
-
-        return SizedBox(
-          width: width,
-          height: 96,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.topCenter,
-            children: [
-              if (sweep) ...[
-                Positioned(
-                  left: 0,
-                  top: 8,
-                  child: Icon(
-                    Icons.chevron_left_rounded,
-                    size: 22,
-                    color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  top: 8,
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    size: 22,
-                    color: theme.colorScheme.onSurfaceVariant.withAlpha(150),
-                  ),
-                ),
-              ],
-              for (var i = 0; i < _icons.length; i++)
-                Positioned(
-                  left: width / 2 + (i - p) * _spacing - 50,
-                  width: 100,
-                  top: 0,
-                  child: Column(
-                    children: [
-                      Transform.scale(
-                        scale: _scaleFor(i, p, t),
-                        child: Opacity(
-                          opacity: (1.0 - (i - p).abs() * 0.45).clamp(0.30, 1.0),
-                          child: Container(
-                            width: _diameter,
-                            height: _diameter,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _bubbleColor(theme, i, p),
-                              border: Border.all(
-                                color: theme.colorScheme.primary.withAlpha(
-                                  ((1 - (i - p).abs()).clamp(0.0, 1.0) * 255).round(),
-                                ),
-                                width: (i - p).abs() < 0.45 ? 2 : 1,
-                              ),
-                            ),
-                            child: Icon(
-                              _icons[i],
-                              size: 20,
-                              color: _iconColor(theme, i, p),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Opacity(
-                        opacity: (1.0 - (i - p).abs() * 2.2).clamp(0.0, 1.0),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHighest.withAlpha(220),
-                            borderRadius: BorderRadius.circular(9),
-                          ),
-                          child: Text(
-                            _labels[i],
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  double _scaleFor(int i, double p, double t) {
-    final base = (1.24 - (i - p).abs() * 0.36).clamp(0.78, 1.24);
-    if (!sweep) return base + math.sin(t * 2 * math.pi) * 0.02;
-    return base;
-  }
-
-  Color _bubbleColor(ThemeData theme, int i, double p) {
-    final dark = theme.brightness == Brightness.dark;
-    final inactive = dark
-        ? theme.colorScheme.surfaceContainerHighest
-        : theme.colorScheme.surfaceContainerHigh;
-    final f = (1.0 - (i - p).abs() * 1.8).clamp(0.0, 1.0);
-    return Color.lerp(inactive, theme.colorScheme.primary, f)!;
-  }
-
-  Color _iconColor(ThemeData theme, int i, double p) {
-    final f = (1.0 - (i - p).abs() * 1.8).clamp(0.0, 1.0);
-    return Color.lerp(
-      theme.colorScheme.onSurfaceVariant,
-      theme.colorScheme.onPrimary,
-      f,
-    )!;
   }
 }
 

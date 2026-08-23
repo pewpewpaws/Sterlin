@@ -35,6 +35,7 @@ class _MainNavigationShellState extends State<MainNavigationShell>
   @override
   void initState() {
     super.initState();
+    NavigationTutorial.reportTab(_currentIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) NavigationTutorial.maybeShow(context);
     });
@@ -144,6 +145,7 @@ class _MainNavigationShellState extends State<MainNavigationShell>
                       items: _allNavItems,
                       onDestinationSelected: (index) {
                         if (index == _currentIndex) return;
+                        NavigationTutorial.reportTab(index);
                         setState(() {
                           _currentIndex = index;
                         });
