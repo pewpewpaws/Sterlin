@@ -26,6 +26,7 @@ void callbackDispatcher() {
           debugPrint('[BG_TASK] Session initialized in background');
           await api.fetchAllData();
           debugPrint('[BG_TASK] Data fetched successfully in background');
+          await BackgroundService.scheduleNextRefresh();
         } else {
           debugPrint('[BG_TASK] Failed to initialize session in background');
         }

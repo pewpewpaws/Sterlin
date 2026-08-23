@@ -289,6 +289,47 @@ class DashboardDataMapper {
     }
   }
 
+  /// True when today's timetable has classes running now (with a short tail
+  /// grace) or starting within the normal refresh horizon.
+  static bool isClassActiveWindow(Map<String, dynamic>? profileData) {
+    try {
+      if (profileData == null) return false;
+      final now = DateTime.now();
+      if (now.weekday == DateTime.sunday) return false;
+
+      final profile = EtlabProfile.fromJson(profileData);
+      final raw = profile.timetable;
+      if (raw == null || raw.isEmpty) return false;
+
+      final maxDayIndex = (raw.length - 1).clamp(4, 6);
+      if ((now.weekday - 1) > maxDayIndex) return false;
+
+      final sessions = parseTimetableFromProfile(profileData);
+      int? firstStart;
+      int? lastEnd;
+      for (final s in sessions) {
+        final sm = s.start.hour * 60 + s.start.minute;
+        final em = s.end.hour * 60 + s.end.minute;
+        if (em <= sm) continue;
+        if (firstStart == null || sm < firstStart) firstStart = sm;
+        if (lastEnd == null || em > lastEnd) lastEnd = em;
+      }
+      if (firstStart == null || lastEnd == null) return false;
+
+      const tailGraceMinutes = 30;
+      const horizonMinutes = 5 * 60;
+      final nowMinutes = now.hour * 60 + now.minute;
+
+      final active =
+          nowMinutes >= firstStart && nowMinutes <= lastEnd + tailGraceMinutes;
+      final imminent =
+          nowMinutes < firstStart && (firstStart - nowMinutes) <= horizonMinutes;
+      return active || imminent;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static (TimeOfDay, TimeOfDay) _parseTimePeriod(
     String timeperiod, {
     bool isFriday = false,
