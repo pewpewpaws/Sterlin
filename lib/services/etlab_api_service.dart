@@ -533,28 +533,6 @@ class EtlabApiService {
     return allData;
   }
 
-  Future<Map<String, dynamic>?> getCachedSemesterAttendance(String semId) async {
-    debugPrint('[CACHE] getCachedSemesterAttendance(semId: "$semId")');
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final key = 'etlab_sem_attendance_$semId';
-      final jsonStr = prefs.getString(key);
-      if (jsonStr != null && jsonStr.isNotEmpty) {
-        return jsonDecode(jsonStr) as Map<String, dynamic>?;
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  Future<void> cacheSemesterAttendance(String semId, Map<String, dynamic> data) async {
-    debugPrint('[CACHE] cacheSemesterAttendance(semId: "$semId")');
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final key = 'etlab_sem_attendance_$semId';
-      await prefs.setString(key, jsonEncode(data));
-    } catch (_) {}
-  }
-
   Future<void> fetchAllData() async {
     debugPrint('[API] fetchAllData()');
 
