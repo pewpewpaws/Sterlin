@@ -8,6 +8,7 @@ import 'screens/main_navigation_shell.dart';
 import 'services/etlab_api_service.dart';
 import 'services/app_logger_service.dart';
 import 'services/background_service.dart';
+import 'services/safeword_service.dart';
 import 'services/theme_service.dart';
 
 @pragma('vm:entry-point')
@@ -51,6 +52,7 @@ void main() async {
   );
   await AppLoggerService().init();
   await ThemeService.init();
+  await SafeWordService.load();
   if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
     try {
       Workmanager().initialize(

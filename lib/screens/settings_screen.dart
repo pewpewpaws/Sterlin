@@ -4,6 +4,7 @@ import '../services/app_logger_service.dart';
 import '../services/etlab_api_service.dart';
 import '../services/home_widget_service.dart';
 import '../services/notifications_service.dart';
+import '../services/safeword_service.dart';
 import '../services/theme_service.dart';
 import '../models/dashboard_data.dart';
 import '../widgets/attendance_summary.dart';
@@ -45,6 +46,115 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _applyThemeMode(ThemeMode mode) {
+    if (mode == ThemeService().themeMode) return;
+    ThemeService().setThemeMode(mode);
+    final label = switch (mode) {
+      ThemeMode.light => 'Always light',
+      ThemeMode.dark => 'Always dark',
+      ThemeMode.system => 'System default',
+    };
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Theme: $label'),
+        duration: const Duration(milliseconds: 1200),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _openSafeWordDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Text('Dev Options'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: SafeWordService.unlocked,
+                builder: (context, unlocked, _) => Text(
+                  unlocked
+                      ? 'Extra details are currently visible.'
+                      : 'Extra details are currently hidden.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                autofocus: true,
+                obscureText: true,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) =>
+                    _confirmSafeWord(dialogContext, controller),
+                decoration: const InputDecoration(
+                  hintText: 'Access code',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            if (SafeWordService.unlocked.value)
+              TextButton(
+                onPressed: () {
+                  SafeWordService.set(false);
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Extra details hidden.'),
+                      duration: const Duration(milliseconds: 1500),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
+                child: const Text('Hide'),
+              ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => _confirmSafeWord(dialogContext, controller),
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmSafeWord(
+    BuildContext dialogContext,
+    TextEditingController controller,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = SafeWordService.matches(controller.text);
+    await SafeWordService.set(ok);
+    if (dialogContext.mounted) Navigator.pop(dialogContext);
+    if (mounted) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            ok ? 'Extra details unlocked.' : 'Extra details hidden.',
+          ),
+          duration: const Duration(milliseconds: 1500),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _copyAllLogs(List<LogEntry> logs) {
@@ -211,46 +321,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
                         children: [
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text(
-                              'Theme Mode',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text(
-                              switch (ThemeService().themeMode) {
-                                ThemeMode.light => 'Always light.',
-                                ThemeMode.dark => 'Always dark.',
-                                ThemeMode.system =>
-                                  'Matching your phone — ${theme.brightness == Brightness.dark ? 'dark' : 'light'} right now.',
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          SegmentedButton<ThemeMode>(
-                            segments: const [
-                              ButtonSegment(
-                                value: ThemeMode.system,
-                                icon: Icon(Icons.brightness_auto, size: 18),
-                                label: Text('Auto'),
-                              ),
-                              ButtonSegment(
-                                value: ThemeMode.light,
-                                icon: Icon(Icons.light_mode, size: 18),
-                                label: Text('Light'),
-                              ),
-                              ButtonSegment(
-                                value: ThemeMode.dark,
-                                icon: Icon(Icons.dark_mode, size: 18),
-                                label: Text('Dark'),
-                              ),
-                            ],
-                            selected: {ThemeService().themeMode},
-                            onSelectionChanged: (set) {
-                              ThemeService().setThemeMode(set.first);
+                          ListenableBuilder(
+                            listenable: ThemeService(),
+                            builder: (context, _) {
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text(
+                                  'Theme Mode',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  switch (ThemeService().themeMode) {
+                                    ThemeMode.light => 'Always light.',
+                                    ThemeMode.dark => 'Always dark.',
+                                    ThemeMode.system =>
+                                      'Matching your phone — ${theme.brightness == Brightness.dark ? 'dark' : 'light'} right now.',
+                                  },
+                                ),
+                                trailing: SegmentedButton<ThemeMode>(
+                                  segments: const [
+                                    ButtonSegment(
+                                      value: ThemeMode.system,
+                                      icon: Icon(Icons.brightness_auto),
+                                    ),
+                                    ButtonSegment(
+                                      value: ThemeMode.light,
+                                      icon: Icon(Icons.light_mode),
+                                    ),
+                                    ButtonSegment(
+                                      value: ThemeMode.dark,
+                                      icon: Icon(Icons.dark_mode),
+                                    ),
+                                  ],
+                                  selected: {ThemeService().themeMode},
+                                  onSelectionChanged: (set) =>
+                                      _applyThemeMode(set.first),
+                                  showSelectedIcon: false,
+                                  style: SegmentedButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                  ),
+                                ),
+                              );
                             },
-                            showSelectedIcon: false,
-                            style: SegmentedButton.styleFrom(),
                           ),
                           const Divider(height: 1),
                           ListTile(
@@ -713,6 +830,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 },
                               );
                             },
+                          ),
+                          const Divider(),
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const Text(
+                              'Dev Options',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: const Text(
+                              'Restricted. Enter the access code.',
+                            ),
+                            trailing: ValueListenableBuilder<bool>(
+                              valueListenable: SafeWordService.unlocked,
+                              builder: (context, unlocked, _) => Icon(
+                                unlocked
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined,
+                                size: 20,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            onTap: _openSafeWordDialog,
                           ),
                           const Divider(),
                           ListTile(
