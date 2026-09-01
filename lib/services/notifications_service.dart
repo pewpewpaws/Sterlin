@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'etlab_api_service.dart';
@@ -35,7 +36,44 @@ class NotificationsService {
     }
   }
 
+  /// Checks if system-level notification permission is granted in Android / iOS
+  Future<bool> isSystemNotificationPermissionGranted() async {
+    if (kIsWeb) return true;
+    try {
+      const platform = MethodChannel('com.pewpewpaws.sterlin/battery');
+      final bool? granted = await platform.invokeMethod<bool>('areNotificationsEnabled');
+      if (granted != null) return granted;
+    } catch (_) {}
+
+    try {
+      await init();
+      final androidImplementation = _flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      final bool? granted = await androidImplementation?.areNotificationsEnabled();
+      if (granted != null) return granted;
+    } catch (_) {}
+
+    return true;
+  }
+
+  /// Opens the system Notification settings page for this app
+  Future<void> openSystemNotificationSettings() async {
+    try {
+      const platform = MethodChannel('com.pewpewpaws.sterlin/battery');
+      await platform.invokeMethod('openNotificationSettings');
+    } catch (_) {}
+  }
+
+  /// True only if both system permission is granted AND user has enabled it in app prefs
   Future<bool> areNotificationsEnabled() async {
+    final systemGranted = await isSystemNotificationPermissionGranted();
+    if (!systemGranted) return false;
+    final inApp = await areNotificationsEnabledInPrefs();
+    return inApp;
+  }
+
+  /// Checks only in-app preference value
+  Future<bool> areNotificationsEnabledInPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyNotificationsEnabled) ?? true;
   }
@@ -74,7 +112,8 @@ class NotificationsService {
         sound: true,
       );
 
-      return (grantedAndroid ?? true) && (grantedIos ?? true);
+      final granted = (grantedAndroid ?? true) && (grantedIos ?? true);
+      return granted;
     } catch (e) {
       debugPrint('[ERROR] requestPermission error: $e');
       return false;

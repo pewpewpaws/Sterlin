@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/etlab_api_service.dart';
 import '../widgets/page_header.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -193,6 +194,31 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showLogoutDialog(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.colorScheme.error,
+                        side: BorderSide(
+                          color: theme.colorScheme.error.withAlpha(120),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.logout_rounded),
+                      label: const Text(
+                        'Log Out',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -212,6 +238,52 @@ class ProfileScreen extends StatelessWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          icon: Icon(
+            Icons.logout_rounded,
+            color: theme.colorScheme.error,
+            size: 32,
+          ),
+          title: const Text('Log Out'),
+          content: const Text(
+            'Are you sure you want to log out? You will need to enter your credentials to log back in.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.error,
+                foregroundColor: theme.colorScheme.onError,
+              ),
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                await EtlabApiService().logout();
+                if (context.mounted) {
+                  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
+              },
+              child: const Text('Log Out'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

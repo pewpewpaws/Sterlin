@@ -21,14 +21,31 @@ class TodaysTimetableWidget extends StatefulWidget {
 
 class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
   late List<String> _dayNames;
-
   late int _selectedDayIndex;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _initDayNames();
     _selectedDayIndex = _todayDayIndex ?? 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveSession(animate: false);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant TodaysTimetableWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveSession(animate: false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _initDayNames() {
@@ -47,15 +64,59 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
     return (index >= 0 && index < _dayNames.length) ? index : null;
   }
 
+  int _getTargetScrollIndex(List<ClassSession> sessions) {
+    if (sessions.isEmpty) return 0;
+
+    // 1. Current active class
+    final currentIndex = sessions.indexWhere((s) => s.isCurrent);
+    if (currentIndex != -1) return currentIndex;
+
+    // 2. Next upcoming class (not past yet)
+    final upcomingIndex = sessions.indexWhere((s) => !s.isPast);
+    if (upcomingIndex != -1) return upcomingIndex;
+
+    return 0;
+  }
+
+  void _scrollToActiveSession({bool animate = false}) {
+    if (!mounted || !_scrollController.hasClients) return;
+
+    final sessions = _getSessionsForDay();
+    final isToday = _todayDayIndex != null && _selectedDayIndex == _todayDayIndex;
+    final int targetIndex = isToday ? _getTargetScrollIndex(sessions) : 0;
+
+    const double itemWidth = 243.0; // 235 card width + 8 horizontal margin
+    final double maxScroll = _scrollController.position.maxScrollExtent;
+    final double targetOffset = (targetIndex * itemWidth).clamp(0.0, maxScroll);
+
+    if ((_scrollController.offset - targetOffset).abs() < 1.0) return;
+
+    if (animate) {
+      _scrollController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    } else {
+      _scrollController.jumpTo(targetOffset);
+    }
+  }
+
   void _prevDay() {
     setState(() {
       _selectedDayIndex = (_selectedDayIndex - 1 + _dayNames.length) % _dayNames.length;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveSession(animate: true);
     });
   }
 
   void _nextDay() {
     setState(() {
       _selectedDayIndex = (_selectedDayIndex + 1) % _dayNames.length;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToActiveSession(animate: true);
     });
   }
 
@@ -101,18 +162,27 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
                   ),
                   if (isTodaySelected) ...[
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        'TODAY',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
+                    InkWell(
+                      borderRadius: BorderRadius.circular(4),
+                      onTap: () => _scrollToActiveSession(animate: true),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'TODAY',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -183,6 +253,7 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
           SizedBox(
             height: 180,
             child: ListView.builder(
+              controller: _scrollController,
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: sessions.length,
@@ -250,12 +321,19 @@ class _ClassCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHigh,
+                            color: isCurrent
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            session.sessionType.toUpperCase(),
+                            isCurrent
+                                ? 'NOW • ${session.sessionType.toUpperCase()}'
+                                : session.sessionType.toUpperCase(),
                             style: theme.textTheme.labelSmall?.copyWith(
+                              color: isCurrent
+                                  ? theme.colorScheme.onPrimary
+                                  : null,
                               fontWeight: FontWeight.bold,
                               fontSize: 10,
                             ),

@@ -171,7 +171,7 @@ class NextClassCardWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      isCurrent ? '⚡ CURRENT CLASS' : 'NEXT CLASS',
+                      isCurrent ? 'CURRENT CLASS' : 'NEXT CLASS',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: isCurrent
                             ? theme.colorScheme.onPrimary

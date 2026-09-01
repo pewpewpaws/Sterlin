@@ -10,6 +10,7 @@ import '../models/dashboard_data.dart';
 import '../widgets/attendance_summary.dart';
 import '../widgets/navigation_tutorial.dart';
 import '../widgets/page_header.dart';
+import 'login_screen.dart';
 import 'notifications_screen.dart';
 import 'profile_screen.dart';
 
@@ -20,30 +21,60 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
   String _filterQuery = '';
   bool? _notificationsEnabled;
   bool _isSyncing = false;
+  Map<String, dynamic>? _backgroundStatus;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadNotificationSettings();
+    _loadBackgroundStatus();
     AppLoggerService().loadLogs();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadNotificationSettings();
+      _loadBackgroundStatus();
+    }
+  }
+
   Future<void> _loadNotificationSettings() async {
-    final enabled = await NotificationsService().areNotificationsEnabled();
+    final systemGranted =
+        await NotificationsService().isSystemNotificationPermissionGranted();
+    final inAppEnabled =
+        await NotificationsService().areNotificationsEnabledInPrefs();
     if (mounted) {
       setState(() {
-        _notificationsEnabled = enabled;
+        _notificationsEnabled = systemGranted && inAppEnabled;
       });
     }
   }
 
+  Future<void> _loadBackgroundStatus() async {
+    try {
+      const platform = MethodChannel('com.pewpewpaws.sterlin/battery');
+      final res = await platform.invokeMapMethod<String, dynamic>(
+        'getBackgroundStatus',
+      );
+      if (mounted) {
+        setState(() {
+          _backgroundStatus = res;
+        });
+      }
+    } catch (_) {}
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     super.dispose();
   }
@@ -51,17 +82,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _applyThemeMode(ThemeMode mode) {
     if (mode == ThemeService().themeMode) return;
     ThemeService().setThemeMode(mode);
-    final label = switch (mode) {
-      ThemeMode.light => 'Always light',
-      ThemeMode.dark => 'Always dark',
-      ThemeMode.system => 'System default',
-    };
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Theme: $label'),
-        duration: const Duration(milliseconds: 1200),
-        behavior: SnackBarBehavior.floating,
-      ),
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          icon: Icon(
+            Icons.logout_rounded,
+            color: theme.colorScheme.error,
+            size: 32,
+          ),
+          title: const Text('Log Out'),
+          content: const Text(
+            'Are you sure you want to log out? You will need to enter your credentials to log back in.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.error,
+                foregroundColor: theme.colorScheme.onError,
+              ),
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+                await EtlabApiService().logout();
+                if (context.mounted) {
+                  Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (route) => false,
+                  );
+                }
+              },
+              child: const Text('Log Out'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -168,6 +233,344 @@ class _SettingsScreenState extends State<SettingsScreen> {
       SnackBar(
         content: Text('${logs.length} log entries copied to clipboard!'),
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showBackgroundSyncDialog() {
+    final status = _backgroundStatus?['status'] as String? ?? 'optimized';
+    final isRestricted =
+        _backgroundStatus?['isBackgroundRestricted'] as bool? ?? false;
+    final isXiaomi = _backgroundStatus?['isXiaomi'] as bool? ?? false;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final theme = Theme.of(context);
+        final isDark = theme.brightness == Brightness.dark;
+
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final curStatus = _backgroundStatus?['status'] as String? ?? status;
+            final isUnrestricted = curStatus == 'unrestricted';
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color:
+                              theme.colorScheme.onSurfaceVariant.withAlpha(80),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: isUnrestricted
+                                ? (isDark
+                                    ? const Color(0xFF14532D)
+                                    : const Color(0xFFDCFCE7))
+                                : theme.colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            isUnrestricted
+                                ? Icons.check_circle_outline
+                                : Icons.battery_charging_full_rounded,
+                            color: isUnrestricted
+                                ? (isDark
+                                    ? const Color(0xFF4ADE80)
+                                    : const Color(0xFF15803D))
+                                : theme.colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Background Activity & Sync',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                isUnrestricted
+                                    ? 'Running smoothly without limits'
+                                    : 'May be throttled by battery saver',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Status Summary Banner
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isUnrestricted
+                            ? (isDark
+                                ? const Color(0xFF14532D).withAlpha(120)
+                                : const Color(0xFFDCFCE7))
+                            : (isRestricted
+                                ? (isDark
+                                    ? const Color(0xFF7F1D1D).withAlpha(120)
+                                    : const Color(0xFFFEE2E2))
+                                : theme.colorScheme.surfaceContainerHigh),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isUnrestricted
+                              ? (isDark
+                                  ? const Color(0xFF4ADE80).withAlpha(120)
+                                  : const Color(0xFF86EFAC))
+                              : (isRestricted
+                                  ? (isDark
+                                      ? const Color(0xFFF87171).withAlpha(120)
+                                      : const Color(0xFFFCA5A5))
+                                  : theme.colorScheme.outlineVariant
+                                      .withAlpha(80)),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            isUnrestricted
+                                ? Icons.verified_rounded
+                                : (isRestricted
+                                    ? Icons.error_outline_rounded
+                                    : Icons.info_outline_rounded),
+                            size: 20,
+                            color: isUnrestricted
+                                ? (isDark
+                                    ? const Color(0xFF4ADE80)
+                                    : const Color(0xFF15803D))
+                                : (isRestricted
+                                    ? (isDark
+                                        ? const Color(0xFFF87171)
+                                        : const Color(0xFFDC2626))
+                                    : theme.colorScheme.primary),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  isUnrestricted
+                                      ? 'Activity Status: Unrestricted'
+                                      : (isRestricted
+                                          ? 'Activity Status: Restricted'
+                                          : 'Activity Status: Optimized (Standard)'),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: isUnrestricted
+                                        ? (isDark
+                                            ? const Color(0xFF4ADE80)
+                                            : const Color(0xFF15803D))
+                                        : (isRestricted
+                                            ? (isDark
+                                                ? const Color(0xFFF87171)
+                                                : const Color(0xFFDC2626))
+                                            : theme.colorScheme.onSurface),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  isUnrestricted
+                                      ? 'Sterlin is exempt from battery saver restrictions. Widgets and absence notifications update on time.'
+                                      : (isRestricted
+                                          ? 'Android is blocking background tasks for this app. You must set Battery to "Unrestricted" or "Optimized" in App Settings.'
+                                          : 'Android may throttle periodic background sync when your phone is asleep. Setting battery to "Unrestricted" ensures immediate widget updates.'),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Actions
+                    if (!isUnrestricted) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          icon: const Icon(Icons.bolt),
+                          label: const Text('Request Unrestricted Mode'),
+                          onPressed: () async {
+                            const platform = MethodChannel(
+                              'com.pewpewpaws.sterlin/battery',
+                            );
+                            await platform.invokeMethod(
+                              'requestIgnoreBatteryOptimizations',
+                            );
+                            await _loadBackgroundStatus();
+                            setSheetState(() {});
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.settings_outlined),
+                        label: const Text('Open App Battery Settings'),
+                        onPressed: () async {
+                          const platform = MethodChannel(
+                            'com.pewpewpaws.sterlin/battery',
+                          );
+                          await platform.invokeMethod('openAppBatterySettings');
+                        },
+                      ),
+                    ),
+
+                    if (isXiaomi) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.shield_outlined),
+                          label: const Text(
+                            'Xiaomi / HyperOS Autostart Settings',
+                          ),
+                          onPressed: () async {
+                            const platform = MethodChannel(
+                              'com.pewpewpaws.sterlin/battery',
+                            );
+                            await platform.invokeMethod('openAutoStartSettings');
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBackgroundStatusBadge(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    final status = _backgroundStatus?['status'] as String? ?? 'optimized';
+
+    if (status == 'unrestricted') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF14532D) : const Color(0xFFDCFCE7),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.check_circle,
+              size: 13,
+              color: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Unrestricted',
+              style: TextStyle(
+                color: isDark
+                    ? const Color(0xFF4ADE80)
+                    : const Color(0xFF15803D),
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (status == 'restricted') {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF7F1D1D) : const Color(0xFFFEE2E2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              size: 13,
+              color: isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Restricted',
+              style: TextStyle(
+                color: isDark
+                    ? const Color(0xFFF87171)
+                    : const Color(0xFFDC2626),
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.bolt,
+            size: 13,
+            color: theme.colorScheme.onPrimaryContainer,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'Optimized',
+            style: TextStyle(
+              color: theme.colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -325,20 +728,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             listenable: ThemeService(),
                             builder: (context, _) {
                               return ListTile(
-                                contentPadding: EdgeInsets.zero,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
                                 title: const Text(
                                   'Theme Mode',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                subtitle: Text(
-                                  switch (ThemeService().themeMode) {
-                                    ThemeMode.light => 'Always light.',
-                                    ThemeMode.dark => 'Always dark.',
-                                    ThemeMode.system =>
-                                      'Matching your phone — ${theme.brightness == Brightness.dark ? 'dark' : 'light'} right now.',
-                                  },
+                                subtitle: const Text(
+                                  'System default, light, or dark mode',
                                 ),
                                 trailing: SegmentedButton<ThemeMode>(
                                   segments: const [
@@ -369,8 +769,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               );
                             },
                           ),
-                          const Divider(height: 1),
+                          const Divider(height: 1, indent: 16, endIndent: 16),
                           ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                            ),
                             title: const Text(
                               'Accent Color',
                               style: TextStyle(fontWeight: FontWeight.bold),
@@ -738,59 +1141,55 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               ),
                               value: _notificationsEnabled!,
                               onChanged: (val) async {
-                                setState(() {
-                                  _notificationsEnabled = val;
-                                });
-                                await NotificationsService()
-                                    .setNotificationsEnabled(val);
+                                if (val) {
+                                  final systemGranted =
+                                      await NotificationsService()
+                                          .isSystemNotificationPermissionGranted();
+                                  if (!systemGranted) {
+                                    final granted =
+                                        await NotificationsService()
+                                            .requestPermission();
+                                    if (!granted) {
+                                      await NotificationsService()
+                                          .openSystemNotificationSettings();
+                                      return;
+                                    }
+                                  }
+                                  setState(() {
+                                    _notificationsEnabled = true;
+                                  });
+                                  await NotificationsService()
+                                      .setNotificationsEnabled(true);
+                                } else {
+                                  setState(() {
+                                    _notificationsEnabled = false;
+                                  });
+                                  await NotificationsService()
+                                      .setNotificationsEnabled(false);
+                                }
                               },
                             ),
                             const Divider(),
                             ListTile(
                               contentPadding: EdgeInsets.zero,
                               title: const Text(
-                                'Improve Background Sync',
+                                'Background Activity & Sync',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              subtitle: const Text(
-                                'Allow the app to bypass battery optimization so widgets and notifications update reliably.',
+                              subtitle: Text(
+                                _backgroundStatus == null
+                                    ? 'Check background activity and battery optimization status.'
+                                    : switch (_backgroundStatus!['status']) {
+                                        'unrestricted' =>
+                                          'Unrestricted • Widgets and alerts sync reliably in background.',
+                                        'restricted' =>
+                                          'Restricted • Background tasks blocked by system. Tap to fix.',
+                                        _ =>
+                                          'Optimized • May be delayed by battery saver. Tap to configure.',
+                                      },
                               ),
-                              trailing: const Icon(Icons.bolt),
-                              onTap: () async {
-                                try {
-                                  const platform = MethodChannel(
-                                    'com.pewpewpaws.sterlin/battery',
-                                  );
-                                  final bool result = await platform
-                                      .invokeMethod(
-                                        'requestIgnoreBatteryOptimizations',
-                                      );
-                                  if (!context.mounted) return;
-                                  if (result) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Requested battery optimization ignore!',
-                                        ),
-                                      ),
-                                    );
-                                  } else {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Battery optimization is already disabled or unsupported.',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Error: $e')),
-                                    );
-                                  }
-                                }
-                              },
+                              trailing: _buildBackgroundStatusBadge(theme),
+                              onTap: _showBackgroundSyncDialog,
                             ),
                             const Divider(),
                           ],
@@ -865,6 +1264,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ),
                             trailing: const Icon(Icons.help_outline),
                             onTap: () => NavigationTutorial.show(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Account Section
+                  Text(
+                    'ACCOUNT',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  Card(
+                    elevation: 0,
+                    color: theme.colorScheme.surfaceContainerLow,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: theme.colorScheme.outlineVariant.withAlpha(100),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.errorContainer.withAlpha(120),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.logout_rounded,
+                                color: theme.colorScheme.error,
+                                size: 20,
+                              ),
+                            ),
+                            title: Text(
+                              'Log Out',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.error,
+                              ),
+                            ),
+                            subtitle: const Text(
+                              'Sign out of your student account on this device',
+                            ),
+                            trailing: Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 16,
+                              color: theme.colorScheme.error,
+                            ),
+                            onTap: () => _showLogoutDialog(context),
                           ),
                         ],
                       ),
