@@ -291,23 +291,21 @@ class _ClassCard extends StatelessWidget {
     final isPast = session.isPast && !isCurrent;
 
     Color cardBg = theme.colorScheme.surfaceContainerLow;
-    Color borderBg = Colors.transparent;
 
     if (isCurrent) {
       cardBg = theme.colorScheme.primaryContainer.withAlpha(120);
-      borderBg = theme.colorScheme.primary;
     }
 
     return Opacity(
       opacity: isPast ? 0.55 : 1.0,
       child: Card(
-        elevation: isCurrent ? 4 : 1,
+        elevation: isCurrent ? 2 : 1,
         color: cardBg,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
           side: BorderSide(
-            color: isCurrent ? borderBg : theme.colorScheme.outlineVariant.withAlpha(100),
-            width: isCurrent ? 2 : 1,
+            color: theme.colorScheme.outlineVariant.withAlpha(100),
+            width: 1,
           ),
         ),
         clipBehavior: Clip.antiAlias,

@@ -91,6 +91,12 @@ class MainNavigationShellState extends State<MainNavigationShell>
     NavigationTutorial.reportTab(index);
     setState(() {
       _currentIndex = index;
+      if (index == 2) {
+        _attendanceKeyCounter++;
+        _cachedScreens['attendance'] = AttendanceScreen(
+          key: ValueKey('attendance_$_attendanceKeyCounter'),
+        );
+      }
     });
     _swapC.forward(from: 0);
   }
@@ -216,6 +222,12 @@ class MainNavigationShellState extends State<MainNavigationShell>
                         NavigationTutorial.reportTab(index);
                         setState(() {
                           _currentIndex = index;
+                          if (index == 2) {
+                            _attendanceKeyCounter++;
+                            _cachedScreens['attendance'] = AttendanceScreen(
+                              key: ValueKey('attendance_$_attendanceKeyCounter'),
+                            );
+                          }
                         });
                         _swapC.forward(from: 0);
                       },

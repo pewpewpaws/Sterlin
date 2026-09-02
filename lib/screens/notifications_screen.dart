@@ -4,7 +4,7 @@ import '../models/absence_detail.dart';
 import '../services/notifications_service.dart';
 import '../services/theme_service.dart';
 import '../widgets/page_header.dart';
-import 'attendance_screen.dart';
+import 'main_navigation_shell.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -64,15 +64,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (dateStr.isNotEmpty) {
       parsedDate = DateTime.tryParse(dateStr);
     }
-    Navigator.push(
+    Navigator.pop(context);
+    MainNavigationShell.navigateToAttendance(
       context,
-      MaterialPageRoute(
-        builder: (_) => AttendanceScreen(
-          highlightSubject: subject,
-          targetDate: parsedDate,
-          initialTabIndex: 1,
-        ),
-      ),
+      highlightSubject: subject,
+      targetDate: parsedDate,
+      initialTabIndex: 1,
     );
   }
 

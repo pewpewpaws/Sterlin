@@ -283,6 +283,7 @@ class EtlabApiService {
 
         // Fetch remaining endpoints in background
         await fetchAllData();
+        await NotificationsService().seedAllHistoricalAbsences();
         return true;
       } else {
         debugPrint('[API] login(username: "${username.trim()}", status: "failed")');

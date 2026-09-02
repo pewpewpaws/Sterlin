@@ -24,7 +24,7 @@ class NextClassCardWidget extends StatelessWidget {
           color: theme.colorScheme.primaryContainer,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+            side: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(100), width: 1),
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -82,7 +82,7 @@ class NextClassCardWidget extends StatelessWidget {
           color: theme.colorScheme.primaryContainer,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: theme.colorScheme.primary, width: 1.5),
+            side: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(100), width: 1),
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -106,7 +106,7 @@ class NextClassCardWidget extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'ALL CLASSES COMPLETED',
+                        'CLASSES FINISHED',
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: theme.colorScheme.primary,
                           fontWeight: FontWeight.bold,
@@ -115,7 +115,7 @@ class NextClassCardWidget extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        "You're done for the day! 🎉",
+                        'All done for today! 🎉',
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: theme.colorScheme.onPrimaryContainer,
                           fontWeight: FontWeight.bold,
@@ -151,8 +151,8 @@ class NextClassCardWidget extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: isCurrent ? theme.colorScheme.primary : theme.colorScheme.outlineVariant,
-            width: isCurrent ? 2 : 1,
+            color: theme.colorScheme.outlineVariant.withAlpha(100),
+            width: 1,
           ),
         ),
         clipBehavior: Clip.antiAlias,

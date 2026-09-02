@@ -319,8 +319,14 @@ class NotificationsService {
       final String? baselineJson = prefs.getString(_keyBaselineData);
       final Map<String, dynamic> baseline = baselineJson != null ? jsonDecode(baselineJson) : {};
 
-      if (monthData['attends'] is List) {
-        for (var item in (monthData['attends'] as List<dynamic>)) {
+      dynamic attendsList = monthData['attends'];
+      if (attendsList == null && monthData['data'] is Map) {
+        attendsList = monthData['data']['attends'];
+      }
+      attendsList ??= monthData['attendance'];
+
+      if (attendsList is List) {
+        for (var item in attendsList) {
           if (item is Map && item['date'] != null && item['periods'] is List) {
             final date = item['date'].toString();
             for (var period in item['periods']) {
@@ -344,6 +350,50 @@ class NotificationsService {
       debugPrint('[NOTIF] Seeded month baseline for first-time month load');
     } catch (e) {
       debugPrint('[NOTIF] seedMonthBaseline error: $e');
+    }
+  }
+
+  /// Seeds all existing archived absences so initial sync or historical records
+  /// never fire unexpected push notifications on a fresh install or login.
+  Future<void> seedAllHistoricalAbsences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? notifiedJson = prefs.getString(_keyNotifiedData);
+      final Map<String, dynamic> notified =
+          notifiedJson != null ? jsonDecode(notifiedJson) : {};
+
+      final String? baselineJson = prefs.getString(_keyBaselineData);
+      final Map<String, dynamic> baseline =
+          baselineJson != null ? jsonDecode(baselineJson) : {};
+
+      final api = EtlabApiService();
+      final Map<String, Map<String, dynamic>> currentData =
+          await api.getAllArchivedCalendarData();
+
+      currentData.forEach((date, dayData) {
+        if (dayData['periods'] is List) {
+          for (var period in dayData['periods']) {
+            if (period is! Map) continue;
+            final String attendance =
+                period['attendance']?.toString().toLowerCase() ?? '';
+            if (attendance == 'absent') {
+              final String subject =
+                  period['subject']?.toString() ?? 'Unknown';
+              final String hour = period['hour']?.toString() ?? '';
+              final String absenceKey = '${date}_${hour}_$subject';
+              notified[absenceKey] = true;
+              baseline[absenceKey] = true;
+            }
+          }
+        }
+      });
+
+      await prefs.setString(_keyNotifiedData, jsonEncode(notified));
+      await prefs.setString(_keyBaselineData, jsonEncode(baseline));
+      await updateUnreadCount();
+      debugPrint('[NOTIF] Seeded all historical absences into baseline');
+    } catch (e) {
+      debugPrint('[NOTIF] seedAllHistoricalAbsences error: $e');
     }
   }
 
