@@ -360,73 +360,67 @@ class DashboardScreenState extends State<DashboardScreen> {
     final firstName =
         (profile['name']?.toString() ?? 'Student').split(' ').first;
 
-    Widget bodyContent = Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 640),
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              PageHeader(
-                title: firstName,
-                eyebrow: _greeting,
-                implyBackButton: false,
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                actions: [
-                  HeaderAction(
-                    icon: Icons.refresh,
-                    tooltip: 'Refresh Data',
-                    onTap: _refreshData,
-                  ),
-                  NotificationBellAction(
-                    actionKey: NavigationTutorial.bellKey,
-                  ),
-                  const ProfileAvatarAction(),
-                ],
+    Widget bodyContent = SafeArea(
+      bottom: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PageHeader(
+            title: firstName,
+            eyebrow: _greeting,
+            implyBackButton: false,
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+            actions: [
+              HeaderAction(
+                icon: Icons.refresh,
+                tooltip: 'Refresh Data',
+                onTap: _refreshData,
               ),
-              if (_isLoading)
-                const Center(child: LinearProgressIndicator()),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _refreshData,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Active Dashboard Widgets
-                        ..._widgetOrder
-                            .where((w) => _activeWidgets.contains(w))
-                            .map(
-                              (type) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _buildDashboardWidget(type, profile),
-                              ),
-                            ),
-
-                        // Add Widget Button Footer
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            child: OutlinedButton.icon(
-                              onPressed: _openWidgetCustomizer,
-                              icon: const Icon(Icons.add),
-                              label: const Text('Add / Customize Widgets'),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                ),
+              NotificationBellAction(
+                actionKey: NavigationTutorial.bellKey,
               ),
+              const ProfileAvatarAction(),
             ],
           ),
-        ),
+          if (_isLoading)
+            const Center(child: LinearProgressIndicator()),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _refreshData,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Active Dashboard Widgets
+                    ..._widgetOrder
+                        .where((w) => _activeWidgets.contains(w))
+                        .map(
+                          (type) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildDashboardWidget(type, profile),
+                          ),
+                        ),
+
+                    // Add Widget Button Footer
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: OutlinedButton.icon(
+                          onPressed: _openWidgetCustomizer,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add / Customize Widgets'),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
 

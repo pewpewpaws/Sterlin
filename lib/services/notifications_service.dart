@@ -28,8 +28,27 @@ class NotificationsService {
   Future<void> init() async {
     if (_initialized) return;
     try {
-      const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/launcher_icon');
-      const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+      const AndroidInitializationSettings initializationSettingsAndroid =
+          AndroidInitializationSettings('@mipmap/launcher_icon');
+      const DarwinInitializationSettings initializationSettingsDarwin =
+          DarwinInitializationSettings();
+      const LinuxInitializationSettings initializationSettingsLinux =
+          LinuxInitializationSettings(defaultActionName: 'Open notification');
+      const WindowsInitializationSettings initializationSettingsWindows =
+          WindowsInitializationSettings(
+        appName: 'Sterlin',
+        appUserModelId: 'com.pewpewpaws.sterlin',
+        guid: 'f0043818-a92c-4ec7-991c-95b682669e4f',
+      );
+
+      const InitializationSettings initializationSettings =
+          InitializationSettings(
+        android: initializationSettingsAndroid,
+        iOS: initializationSettingsDarwin,
+        macOS: initializationSettingsDarwin,
+        linux: initializationSettingsLinux,
+        windows: initializationSettingsWindows,
+      );
       await _flutterLocalNotificationsPlugin.initialize(
         settings: initializationSettings,
       );
@@ -42,6 +61,10 @@ class NotificationsService {
   /// Checks if system-level notification permission is granted in Android / iOS
   Future<bool> isSystemNotificationPermissionGranted() async {
     if (kIsWeb) return true;
+    if (defaultTargetPlatform != TargetPlatform.android &&
+        defaultTargetPlatform != TargetPlatform.iOS) {
+      return true;
+    }
     try {
       const platform = MethodChannel('com.pewpewpaws.sterlin/battery');
       final bool? granted = await platform.invokeMethod<bool>('areNotificationsEnabled');
@@ -101,6 +124,10 @@ class NotificationsService {
   }
 
   Future<bool> requestPermission() async {
+    if (defaultTargetPlatform != TargetPlatform.android &&
+        defaultTargetPlatform != TargetPlatform.iOS) {
+      return true;
+    }
     await init();
     try {
       final androidImplementation = _flutterLocalNotificationsPlugin
@@ -133,7 +160,13 @@ class NotificationsService {
       priority: Priority.high,
       styleInformation: BigTextStyleInformation(body),
     );
-    final NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
+    final NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+      iOS: const DarwinNotificationDetails(),
+      macOS: const DarwinNotificationDetails(),
+      linux: const LinuxNotificationDetails(),
+      windows: const WindowsNotificationDetails(),
+    );
     
     try {
       await _flutterLocalNotificationsPlugin.show(
@@ -203,6 +236,10 @@ class NotificationsService {
     );
     final NotificationDetails platformChannelSpecifics = NotificationDetails(
       android: androidPlatformChannelSpecifics,
+      iOS: const DarwinNotificationDetails(),
+      macOS: const DarwinNotificationDetails(),
+      linux: const LinuxNotificationDetails(),
+      windows: const WindowsNotificationDetails(),
     );
 
     try {

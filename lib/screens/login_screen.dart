@@ -17,6 +17,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _usernameFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  final _loginBtnFocusNode = FocusNode();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -28,6 +30,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _usernameController.dispose();
     _passwordController.dispose();
     _usernameFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    _loginBtnFocusNode.dispose();
     super.dispose();
   }
 
@@ -263,6 +267,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ? TextInputType.number
                                   : TextInputType.text,
                               textInputAction: TextInputAction.next,
+                              onFieldSubmitted: (_) =>
+                                  _passwordFocusNode.requestFocus(),
                               style: theme.textTheme.bodyLarge,
                               decoration: _fieldDecoration(
                                 theme,
@@ -271,17 +277,19 @@ class _LoginScreenState extends State<LoginScreen> {
                                   Icons.person_outline_rounded,
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _numericRegister
-                                        ? Icons.keyboard_alt_outlined
-                                        : Icons.dialpad_outlined,
-                                    color: theme.colorScheme.onSurfaceVariant,
+                                suffixIcon: ExcludeFocus(
+                                  child: IconButton(
+                                    icon: Icon(
+                                      _numericRegister
+                                          ? Icons.keyboard_alt_outlined
+                                          : Icons.dialpad_outlined,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                    tooltip: _numericRegister
+                                        ? 'Use full keyboard'
+                                        : 'Use number pad',
+                                    onPressed: _toggleRegisterKeyboard,
                                   ),
-                                  tooltip: _numericRegister
-                                      ? 'Use full keyboard'
-                                      : 'Use number pad',
-                                  onPressed: _toggleRegisterKeyboard,
                                 ),
                               ),
                               validator: (val) =>
@@ -292,9 +300,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 14),
                             TextFormField(
                               controller: _passwordController,
+                              focusNode: _passwordFocusNode,
                               obscureText: _obscurePassword,
                               autofillHints: const [AutofillHints.password],
                               keyboardType: TextInputType.visiblePassword,
+                              textInputAction: TextInputAction.done,
                               onFieldSubmitted: (_) =>
                                   _isLoading ? null : _handleLogin(),
                               style: theme.textTheme.bodyLarge,
@@ -305,15 +315,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                   Icons.lock_outline_rounded,
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                  onPressed: () => setState(
-                                    () => _obscurePassword = !_obscurePassword,
+                                suffixIcon: ExcludeFocus(
+                                  child: IconButton(
+                                    icon: Icon(
+                                      _obscurePassword
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                    onPressed: () => setState(
+                                      () => _obscurePassword = !_obscurePassword,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -333,6 +345,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: SizedBox(
                         height: 52,
                         child: FilledButton(
+                          focusNode: _loginBtnFocusNode,
                           onPressed: _isLoading ? null : _handleLogin,
                           style: FilledButton.styleFrom(
                             shape: const StadiumBorder(),
