@@ -361,9 +361,15 @@ class _MonthCalendarState extends State<MonthCalendar> {
             _highlightedDate!.day == day;
         final isFuture = dt.isAfter(today);
 
+        final isWeekend = dt.weekday == DateTime.saturday || dt.weekday == DateTime.sunday;
+        final isHoliday = st?.holiday == true || dayData?['holiday'] == true || (dayData == null && isWeekend);
+
         Color? bg;
         Color? fg;
-        if (st == null || st.holiday) {
+        if (isHoliday) {
+          bg = theme.colorScheme.surfaceContainerLowest;
+          fg = palette.danger.withValues(alpha: isFuture ? .75 : .95);
+        } else if (st == null) {
           bg = theme.colorScheme.surfaceContainerLowest;
           fg = theme.colorScheme.onSurfaceVariant.withValues(alpha: .45);
         } else if (!st.hasClasses || isFuture) {
@@ -397,8 +403,10 @@ class _MonthCalendarState extends State<MonthCalendar> {
               border: Border.all(
                 color: isHighlighted
                     ? theme.colorScheme.error
-                    : (isToday ? theme.colorScheme.primary : Colors.transparent),
-                width: isHighlighted ? 2.5 : (isToday ? 1.8 : 1.0),
+                    : (isToday
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outlineVariant.withValues(alpha: .5)),
+                width: isHighlighted ? 2.5 : (isToday ? 1.8 : 0.8),
               ),
               boxShadow: isHighlighted
                   ? [
@@ -428,19 +436,48 @@ class _MonthCalendarState extends State<MonthCalendar> {
                 ),
                 if (st != null && st.mixed && !isFuture)
                   Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Wrap(
-                      spacing: 2,
-                      runSpacing: 2,
-                      alignment: WrapAlignment.center,
+                    padding: const EdgeInsets.only(top: 2.5),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final c in st.dots.take(6))
-                          Container(
-                            width: 4.5,
-                            height: 4.5,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: c,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (final c in st.dots.take(3))
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 1.2),
+                                child: Container(
+                                  width: 4.5,
+                                  height: 4.5,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: c,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (st.dots.length > 3)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                for (final c in st.dots.skip(3).take(3))
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 1.2),
+                                    child: Container(
+                                      width: 4.5,
+                                      height: 4.5,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: c,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                       ],
