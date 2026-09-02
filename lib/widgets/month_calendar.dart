@@ -10,7 +10,9 @@ import '../services/theme_service.dart';
 /// sheet. Day-state logic follows the app's rule that a day only counts as
 /// fully present/absent once every scheduled period is recorded.
 class MonthCalendar extends StatefulWidget {
-  const MonthCalendar({super.key});
+  final DateTime? targetDate;
+
+  const MonthCalendar({super.key, this.targetDate});
 
   @override
   State<MonthCalendar> createState() => _MonthCalendarState();
@@ -34,6 +36,7 @@ class _MonthCalendarState extends State<MonthCalendar> {
   static const int _monthsBack = 6;
 
   late DateTime _focusedMonth;
+  DateTime? _highlightedDate;
   int _slideDir = 1;
   bool _refreshing = false;
   final Map<String, Map<String, Map<String, dynamic>>> _months = {};
@@ -41,9 +44,50 @@ class _MonthCalendarState extends State<MonthCalendar> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _focusedMonth = DateTime(now.year, now.month, 1);
+    if (widget.targetDate != null) {
+      _focusedMonth = DateTime(
+        widget.targetDate!.year,
+        widget.targetDate!.month,
+        1,
+      );
+      _highlightedDate = DateTime(
+        widget.targetDate!.year,
+        widget.targetDate!.month,
+        widget.targetDate!.day,
+      );
+    } else {
+      final now = DateTime.now();
+      _focusedMonth = DateTime(now.year, now.month, 1);
+    }
     _loadMonth(_focusedMonth);
+  }
+
+  @override
+  void didUpdateWidget(covariant MonthCalendar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.targetDate != oldWidget.targetDate && widget.targetDate != null) {
+      setState(() {
+        _focusedMonth = DateTime(
+          widget.targetDate!.year,
+          widget.targetDate!.month,
+          1,
+        );
+        _highlightedDate = DateTime(
+          widget.targetDate!.year,
+          widget.targetDate!.month,
+          widget.targetDate!.day,
+        );
+      });
+      _loadMonth(_focusedMonth);
+    }
+  }
+
+  void _clearHighlight() {
+    if (_highlightedDate != null) {
+      setState(() {
+        _highlightedDate = null;
+      });
+    }
   }
 
   Map<String, Map<String, dynamic>> _parse(Map<String, dynamic>? res) {
@@ -90,6 +134,7 @@ class _MonthCalendarState extends State<MonthCalendar> {
   }
 
   void _changeMonth(int dir) {
+    _clearHighlight();
     final now = DateTime.now();
     final earliest = DateTime(now.year, now.month - _monthsBack, 1);
     final latest = DateTime(now.year, now.month + 1, 1);
@@ -131,10 +176,13 @@ class _MonthCalendarState extends State<MonthCalendar> {
       }
     }
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-      child: Column(
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => _clearHighlight(),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        child: Column(
         children: [
           // Summary strip
           Row(
@@ -274,6 +322,7 @@ class _MonthCalendarState extends State<MonthCalendar> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -306,6 +355,10 @@ class _MonthCalendarState extends State<MonthCalendar> {
         final st = dayData == null ? null : _dayState(dt, dayData, palette);
 
         final isToday = today.year == y && today.month == m && today.day == day;
+        final isHighlighted = _highlightedDate != null &&
+            _highlightedDate!.year == y &&
+            _highlightedDate!.month == m &&
+            _highlightedDate!.day == day;
         final isFuture = dt.isAfter(today);
 
         Color? bg;
@@ -331,17 +384,31 @@ class _MonthCalendarState extends State<MonthCalendar> {
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: dayData == null
-              ? null
-              : () => _showDaySheet(context, dt, dayData),
+          onTap: () {
+            _clearHighlight();
+            if (dayData != null) {
+              _showDaySheet(context, dt, dayData);
+            }
+          },
           child: Container(
             decoration: BoxDecoration(
               color: bg,
               borderRadius: BorderRadius.circular(13),
               border: Border.all(
-                color: isToday ? theme.colorScheme.primary : Colors.transparent,
-                width: 1.8,
+                color: isHighlighted
+                    ? theme.colorScheme.error
+                    : (isToday ? theme.colorScheme.primary : Colors.transparent),
+                width: isHighlighted ? 2.5 : (isToday ? 1.8 : 1.0),
               ),
+              boxShadow: isHighlighted
+                  ? [
+                      BoxShadow(
+                        color: theme.colorScheme.error.withValues(alpha: 0.35),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : null,
             ),
             padding: const EdgeInsets.symmetric(vertical: 3),
             child: Column(

@@ -10,6 +10,7 @@ class NavigationTutorial {
 
   static final GlobalKey navBarKey = GlobalKey();
   static final GlobalKey bellKey = GlobalKey();
+  static final GlobalKey attendanceKey = GlobalKey();
 
   static const String _seenKey = 'app_nav_tutorial_seen';
 
@@ -62,13 +63,15 @@ class NavigationTutorial {
   }
 }
 
-enum _StepAction { none, tapAnyBubble, glide }
+enum _StepTarget { dock, bell, attendance }
+
+enum _StepAction { none, tapAttendance, glideToHome }
 
 class _StepSpec {
   final String title;
   final String body;
   final WidgetBuilder? art;
-  final bool targetBell;
+  final _StepTarget target;
   final bool showOutline;
   final bool spotlight;
   final _StepAction action;
@@ -76,7 +79,7 @@ class _StepSpec {
     this.title,
     this.body,
     this.art, {
-    this.targetBell = false,
+    this.target = _StepTarget.dock,
     this.showOutline = true,
     this.spotlight = true,
     this.action = _StepAction.none,
@@ -103,6 +106,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
   double _cardHeight = 260;
   Rect? _dockRect;
   Rect? _bellRect;
+  Rect? _attendanceRect;
   int _tabBaseline = -1;
   bool _advancing = false;
 
@@ -128,32 +132,40 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       'Everything lives behind this little dock at the bottom of the screen. Here is the 20-second tour.',
       null,
       spotlight: false,
+      showOutline: false,
     ),
     _StepSpec(
-      'Tap a bubble',
-      'Go ahead — tap any bubble on the dock to open its page.',
+      'Tap Attendance',
+      'Tap the Attendance bubble on the dock to open your attendance overview.',
       null,
-      showOutline: false,
-      action: _StepAction.tapAnyBubble,
+      target: _StepTarget.attendance,
+      showOutline: true,
+      spotlight: true,
+      action: _StepAction.tapAttendance,
     ),
     _StepSpec(
-      'Now glide',
-      'Drag sideways across the dock and let go on another page.',
+      'Slide back to Home',
+      'Drag sideways across the dock and glide back to Home.',
       null,
+      target: _StepTarget.dock,
       showOutline: false,
-      action: _StepAction.glide,
+      spotlight: true,
+      action: _StepAction.glideToHome,
     ),
     _StepSpec(
       'Watch for absences',
       'This bell sits at the top corner of every page — tap it to see absences newly recorded in ETLab.',
       _buildBellArt,
-      targetBell: true,
-      showOutline: false,
+      target: _StepTarget.bell,
+      showOutline: true,
+      spotlight: true,
     ),
     _StepSpec(
       "You're all set!",
       "That's the whole tour. You can replay it anytime from Settings.",
       _buildDoneArt,
+      spotlight: false,
+      showOutline: false,
     ),
   ];
 
@@ -161,10 +173,14 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
   static Widget _buildDoneArt(BuildContext context) => const _DoneCheck();
 
   Rect _targetFor(int step) {
-    if (_steps[step].targetBell) {
-      return _bellRect ?? _fallbackBellRect();
+    switch (_steps[step].target) {
+      case _StepTarget.bell:
+        return _bellRect ?? _fallbackBellRect();
+      case _StepTarget.attendance:
+        return _attendanceRect ?? _fallbackAttendanceRect();
+      case _StepTarget.dock:
+        return _dockRect ?? _fallbackDockRect();
     }
-    return _dockRect ?? _fallbackDockRect();
   }
 
   Rect _fallbackDockRect() {
@@ -172,6 +188,17 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final barTop = size.height - bottomInset - 20.0 - 104.0;
     return Rect.fromLTWH(12, barTop, size.width - 24, 134);
+  }
+
+  Rect _fallbackAttendanceRect() {
+    final size = MediaQuery.of(context).size;
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final barTop = size.height - bottomInset - 20.0 - 104.0;
+    return Rect.fromCenter(
+      center: Offset(size.width / 2 + 66.0, barTop + 18.0 + 24.0),
+      width: 48,
+      height: 48,
+    );
   }
 
   Rect _fallbackBellRect() {
@@ -204,8 +231,19 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     final spec = _steps[_step];
     if (spec.action == _StepAction.none) return;
     final value = NavigationTutorial.lastTabIndex.value;
-    if (value < 0 || value == _tabBaseline) return;
-    _completeActionStep();
+    if (value < 0) return;
+
+    if (spec.action == _StepAction.tapAttendance) {
+      if (value != _tabBaseline) {
+        _completeActionStep();
+      }
+    } else if (spec.action == _StepAction.glideToHome) {
+      if (value == 1) {
+        _completeActionStep();
+      } else if (value != _tabBaseline) {
+        _tabBaseline = value;
+      }
+    }
   }
 
   void _completeActionStep() {
@@ -225,7 +263,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       return math.max(16.0, (size.height - _cardHeight) / 2);
     }
     final target = _targetFor(step);
-    if (_steps[step].targetBell) {
+    if (_steps[step].target == _StepTarget.bell) {
       return math.min(
         target.bottom + 16,
         math.max(12.0, size.height - _cardHeight - 12),
@@ -269,17 +307,23 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       if (ctx == null) return null;
       final ro = ctx.findRenderObject();
       if (ro is RenderBox && ro.attached && ro.hasSize) {
-        return ro.localToGlobal(Offset.zero) & ro.size;
+        final topLeft = ro.localToGlobal(Offset.zero);
+        final bottomRight = ro.localToGlobal(
+          Offset(ro.size.width, ro.size.height),
+        );
+        return Rect.fromPoints(topLeft, bottomRight);
       }
       return null;
     }
 
     final dock = measure(NavigationTutorial.navBarKey);
     final bell = measure(NavigationTutorial.bellKey);
-    if (!mounted || (dock == null && bell == null)) return;
+    final attendance = measure(NavigationTutorial.attendanceKey);
+    if (!mounted || (dock == null && bell == null && attendance == null)) return;
     setState(() {
       if (dock != null) _dockRect = dock;
       if (bell != null) _bellRect = bell;
+      if (attendance != null) _attendanceRect = attendance;
     });
   }
 
@@ -295,6 +339,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     _moveC.stop();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      _measure();
       final h = _cardKey.currentContext?.size?.height;
       if (h != null && h > 0) _cardHeight = h;
       final size = MediaQuery.of(context).size;
@@ -321,7 +366,9 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
         return;
       }
       final moved = (fromRect.center.dy - toRect.center.dy).abs() > 1.0 ||
+          (fromRect.center.dx - toRect.center.dx).abs() > 1.0 ||
           (fromTop - toTop).abs() > 1.0 ||
+          (fromBorder - toBorder).abs() > 0.01 ||
           (fromScrim - toScrim).abs() > 0.01 ||
           (fromHole - toHole).abs() > 0.01 ||
           prevStep == step;
@@ -649,14 +696,17 @@ class _SpotlightPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final full = Offset.zero & size;
     final effective = Rect.lerp(full, hole, holeStrength.clamp(0.0, 1.0))!;
-    final inflated = effective.inflate(12);
-    final radius = Radius.circular(
-      math.min(30.0, inflated.shortestSide * 0.38),
-    );
+    final isCircular =
+        (effective.width - effective.height).abs() < 20.0 && effective.width < 120.0;
+    final pad = isCircular ? 8.0 : 12.0;
+    final inflated = effective.inflate(pad);
+    final radius = isCircular
+        ? Radius.circular(inflated.shortestSide / 2)
+        : Radius.circular(math.min(30.0, inflated.shortestSide * 0.38));
     final rrect = RRect.fromRectAndRadius(inflated, radius);
 
     final scrimPaint = Paint()
-      ..color = Colors.black.withAlpha((153 * scrimScale).round());
+      ..color = Colors.black.withAlpha((160 * scrimScale).round());
     if (holeStrength <= 0.001) {
       canvas.drawRect(full, scrimPaint);
     } else {
@@ -668,21 +718,23 @@ class _SpotlightPainter extends CustomPainter {
       );
     }
 
-    canvas.drawRRect(
-      rrect,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 10
-        ..color = Colors.white.withAlpha((50 * borderScale).round())
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-    );
-    canvas.drawRRect(
-      rrect,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..color = Colors.white.withAlpha((230 * borderScale).round()),
-    );
+    if (borderScale > 0.01) {
+      canvas.drawRRect(
+        rrect,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 8
+          ..color = Colors.white.withAlpha((60 * borderScale).round())
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+      );
+      canvas.drawRRect(
+        rrect,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2
+          ..color = Colors.white.withAlpha((240 * borderScale).round()),
+      );
+    }
   }
 
   @override

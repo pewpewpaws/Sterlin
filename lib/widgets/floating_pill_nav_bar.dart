@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'animated_nav_icons.dart';
+import 'navigation_tutorial.dart';
 
 class NavDestinationItem {
   final String id;
@@ -241,6 +242,9 @@ class _FloatingPillNavBarState extends State<FloatingPillNavBar> with SingleTick
                                 customBorder: const CircleBorder(),
                                 onTap: () => _handleTap(index),
                                 child: Container(
+                                  key: item.id == 'attendance'
+                                      ? NavigationTutorial.attendanceKey
+                                      : null,
                                   width: _circleDiameter,
                                   height: _circleDiameter,
                                   decoration: BoxDecoration(

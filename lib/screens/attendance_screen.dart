@@ -9,8 +9,15 @@ import 'profile_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final String? highlightSubject;
+  final DateTime? targetDate;
+  final int? initialTabIndex;
 
-  const AttendanceScreen({super.key, this.highlightSubject});
+  const AttendanceScreen({
+    super.key,
+    this.highlightSubject,
+    this.targetDate,
+    this.initialTabIndex,
+  });
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
@@ -172,6 +179,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
+      initialIndex: widget.initialTabIndex ?? (widget.targetDate != null ? 1 : 0),
       child: Scaffold(
         body: SafeArea(
           bottom: false,
@@ -206,7 +214,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 child: TabBarView(
                   children: [
                     _buildSubjectwiseTab(Theme.of(context)),
-                    const MonthCalendar(),
+                    MonthCalendar(targetDate: widget.targetDate),
                   ],
                 ),
               ),

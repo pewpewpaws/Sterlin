@@ -144,6 +144,58 @@ class NotificationsService {
     }
   }
 
+  Future<void> showAbsenceNotification({
+    required String subject,
+    required String hour,
+    required String date,
+  }) async {
+    if (!await areNotificationsEnabled()) return;
+    await init();
+    if (!_initialized) return;
+
+    DateTime? parsedDate = DateTime.tryParse(date);
+    String formattedDate = date;
+    if (parsedDate != null) {
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      formattedDate = '${parsedDate.day} ${months[parsedDate.month - 1]} ${parsedDate.year}';
+    }
+
+    final String title = '🚨 Absent: $subject';
+    final String collapsedBody = 'Hour $hour • $formattedDate';
+    final String expandedBody = '📚 Subject: $subject\n🕒 Hour: $hour\n📅 Date: $formattedDate';
+
+    final AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'absent_tracker_channel',
+      'Absent Tracker',
+      channelDescription: 'Notifications for missed classes and absences',
+      importance: Importance.max,
+      priority: Priority.high,
+      styleInformation: BigTextStyleInformation(
+        expandedBody,
+        contentTitle: title,
+        summaryText: 'Hour $hour • $formattedDate',
+      ),
+    );
+    final NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    try {
+      await _flutterLocalNotificationsPlugin.show(
+        id: DateTime.now().millisecondsSinceEpoch % 100000,
+        title: title,
+        body: collapsedBody,
+        notificationDetails: platformChannelSpecifics,
+        payload: jsonEncode({'date': date, 'subject': subject, 'hour': hour}),
+      );
+    } catch (e) {
+      debugPrint('[ERROR] showAbsenceNotification failed: $e');
+    }
+  }
+
   /// Calculates the skipped days by diffing the newly fetched calendar data against the stored baseline.
   Future<List<Map<String, dynamic>>> getNewAbsences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -203,10 +255,11 @@ class NotificationsService {
         final subject = absence['subject'];
         final hour = absence['hour'];
         
-        // Creative absent tracker notification
-        await showLocalNotification(
-          '🚨 Absence Detected',
-          'You were marked absent for $subject\nDate: $date\nPeriod: Hour $hour',
+        // Clean, structured phone notification
+        await showAbsenceNotification(
+          subject: subject.toString(),
+          hour: hour.toString(),
+          date: date.toString(),
         );
 
         notified[key] = true;

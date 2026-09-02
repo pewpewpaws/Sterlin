@@ -35,11 +35,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     // The user must manually dismiss them.
   }
 
-  void _openAttendance(String subject) {
+  void _openAbsenceCalendar(String dateStr, String subject) {
+    DateTime? parsedDate;
+    if (dateStr.isNotEmpty) {
+      parsedDate = DateTime.tryParse(dateStr);
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AttendanceScreen(highlightSubject: subject),
+        builder: (_) => AttendanceScreen(
+          highlightSubject: subject,
+          targetDate: parsedDate,
+          initialTabIndex: 1,
+        ),
       ),
     );
   }
@@ -119,8 +127,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             ),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
-                              onTap: () =>
-                                  _openAttendance(subject.toString()),
+                              onTap: () => _openAbsenceCalendar(
+                                date.toString(),
+                                subject.toString(),
+                              ),
                               child: Padding(
                                 padding: const EdgeInsets.all(12.0),
                                 child: Column(
@@ -169,7 +179,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
-                                      'Period / Hour: $hour',
+                                      'Hour: $hour',
                                       style: theme.textTheme.bodyMedium
                                           ?.copyWith(
                                             color: theme
@@ -181,14 +191,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                     Align(
                                       alignment: Alignment.centerRight,
                                       child: FilledButton.tonalIcon(
-                                        onPressed: () => _openAttendance(
+                                        onPressed: () => _openAbsenceCalendar(
+                                          date.toString(),
                                           subject.toString(),
                                         ),
                                         icon: const Icon(
-                                          Icons.analytics_outlined,
+                                          Icons.calendar_month_outlined,
                                           size: 18,
                                         ),
-                                        label: const Text('View Attendance'),
+                                        label: const Text('View Absence'),
                                       ),
                                     ),
                                   ],
