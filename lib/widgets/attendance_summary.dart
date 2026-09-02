@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../services/etlab_api_service.dart';
+import '../services/safeword_service.dart';
 
 class AttendanceSummaryWidget extends StatefulWidget {
   final List<CourseAttendance> attendanceList;
@@ -409,12 +410,13 @@ class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Builder(
-                  builder: (context) {
+                ValueListenableBuilder<bool>(
+                  valueListenable: SafeWordService.unlocked,
+                  builder: (context, unlocked, _) {
                     final String line;
                     if (criticalCount > 0 || pct < targetPct) {
                       line = warningLine;
-                    } else if (safeSkips > 0) {
+                    } else if (unlocked && safeSkips > 0) {
                       line =
                           'On track · $safeSkips skippable class${safeSkips == 1 ? '' : 'es'} left';
                     } else {
@@ -527,7 +529,7 @@ class _AttendanceCard extends StatelessWidget {
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
                                 ),
-                                maxLines: 2,
+                                maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -591,16 +593,22 @@ class _AttendanceCard extends StatelessWidget {
                             ],
                           ],
                         ),
-                        if (hintText.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            hintText,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: color,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                        const SizedBox(height: 4),
+                        ValueListenableBuilder<bool>(
+                          valueListenable: SafeWordService.unlocked,
+                          builder: (context, unlocked, _) {
+                            final showHint = unlocked || !isSafe;
+                            return (showHint && hintText.isNotEmpty)
+                                ? Text(
+                                    hintText,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: color,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  )
+                                : const SizedBox.shrink();
+                          },
+                        ),
                       ],
                     ),
                   ),

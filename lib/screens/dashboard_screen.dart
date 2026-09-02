@@ -376,11 +376,6 @@ class DashboardScreenState extends State<DashboardScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
                 actions: [
                   HeaderAction(
-                    icon: Icons.widgets_outlined,
-                    tooltip: 'Customize Widgets',
-                    onTap: _openWidgetCustomizer,
-                  ),
-                  HeaderAction(
                     icon: Icons.refresh,
                     tooltip: 'Refresh Data',
                     onTap: _refreshData,

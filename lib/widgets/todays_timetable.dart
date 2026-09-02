@@ -86,20 +86,26 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
     final isToday = _todayDayIndex != null && _selectedDayIndex == _todayDayIndex;
     final int targetIndex = isToday ? _getTargetScrollIndex(sessions) : 0;
 
-    const double itemWidth = 243.0; // 235 card width + 8 horizontal margin
-    final double maxScroll = _scrollController.position.maxScrollExtent;
-    final double targetOffset = (targetIndex * itemWidth).clamp(0.0, maxScroll);
+    double targetOffset = 0.0;
+    for (int i = 0; i < targetIndex && i < sessions.length; i++) {
+      final s = sessions[i];
+      final cardW = (s.isCurrent && isToday) ? 295.0 : 235.0;
+      targetOffset += cardW + 8.0; // card width + 8 horizontal margin (4 on each side)
+    }
 
-    if ((_scrollController.offset - targetOffset).abs() < 1.0) return;
+    final double maxScroll = _scrollController.position.maxScrollExtent;
+    final double clampedOffset = targetOffset.clamp(0.0, maxScroll);
+
+    if ((_scrollController.offset - clampedOffset).abs() < 1.0) return;
 
     if (animate) {
       _scrollController.animateTo(
-        targetOffset,
+        clampedOffset,
         duration: const Duration(milliseconds: 350),
         curve: Curves.easeOutCubic,
       );
     } else {
-      _scrollController.jumpTo(targetOffset);
+      _scrollController.jumpTo(clampedOffset);
     }
   }
 
@@ -252,7 +258,7 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
           )
         else
           SizedBox(
-            height: 180,
+            height: 195,
             child: ListView.builder(
               controller: _scrollController,
               scrollDirection: Axis.horizontal,
@@ -319,7 +325,7 @@ class _ClassCard extends StatelessWidget {
             }
           },
           child: Container(
-            width: 235,
+            width: isCurrent ? 295 : 235,
             padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,7 +390,7 @@ class _ClassCard extends StatelessWidget {
                 ),
                 Text(
                   session.courseName,
-                  maxLines: 2,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,

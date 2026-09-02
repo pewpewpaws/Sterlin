@@ -146,13 +146,15 @@ class DashboardDataMapper {
 
       if (subjectsData != null && subjectsData.containsKey('subjects')) {
         for (var s in (subjectsData['subjects'] as List<dynamic>)) {
-          final item = s as Map<String, dynamic>;
-          final code = item['code']?.toString() ?? '';
-          final name = item['subject']?.toString() ?? code;
-          if (code.isNotEmpty) {
-            codeToName[code] = name;
-            if (code.toUpperCase().startsWith('PE')) {
-              peSubjectCode = code;
+          if (s is Map) {
+            final code = (s['code'] ?? s['subject_code'] ?? s['course_code'] ?? '').toString().trim();
+            final name = (s['subject'] ?? s['subject_name'] ?? s['course_name'] ?? code).toString().trim();
+            if (code.isNotEmpty) {
+              codeToName[code] = name.isNotEmpty ? name : code;
+              codeToName[code.toUpperCase()] = name.isNotEmpty ? name : code;
+              if (code.toUpperCase().startsWith('PE')) {
+                peSubjectCode = code;
+              }
             }
           }
         }
