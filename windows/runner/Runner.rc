@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.pewpewpaws" "\0"
-            VALUE "FileDescription", "planner" "\0"
+            VALUE "FileDescription", "Sterlin" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "planner" "\0"
+            VALUE "InternalName", "Sterlin" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.pewpewpaws. All rights reserved." "\0"
-            VALUE "OriginalFilename", "planner.exe" "\0"
-            VALUE "ProductName", "planner" "\0"
+            VALUE "OriginalFilename", "sterlin.exe" "\0"
+            VALUE "ProductName", "Sterlin" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

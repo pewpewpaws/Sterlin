@@ -1,4 +1,4 @@
-# planner
+# Sterlin
 
 A new Flutter project.
 

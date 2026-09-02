@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:planner/services/theme_service.dart';
+import 'package:sterlin/services/theme_service.dart';
 
 class _Probe extends StatelessWidget {
   const _Probe();
