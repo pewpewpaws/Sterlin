@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/absence_detail.dart';
 import 'etlab_api_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -13,6 +14,8 @@ class NotificationsService {
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
   
+  static final ValueNotifier<int> unreadCountNotifier = ValueNotifier(0);
+
   // Storage key for the baseline used to find diffs
   static const String _keyBaselineData = 'etlab_notifications_baseline';
   // Storage key for absences that have already triggered a notification
@@ -148,24 +151,43 @@ class NotificationsService {
     required String subject,
     required String hour,
     required String date,
+    String? subjectCode,
+    String? teacherName,
   }) async {
     if (!await areNotificationsEnabled()) return;
     await init();
     if (!_initialized) return;
 
-    DateTime? parsedDate = DateTime.tryParse(date);
-    String formattedDate = date;
-    if (parsedDate != null) {
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      formattedDate = '${parsedDate.day} ${months[parsedDate.month - 1]} ${parsedDate.year}';
-    }
+    final resolved = AbsenceDetail.resolve({
+      'subject': subject,
+      'hour': hour,
+      'date': date,
+    });
 
-    final String title = '🚨 Absent: $subject';
-    final String collapsedBody = 'Hour $hour • $formattedDate';
-    final String expandedBody = '📚 Subject: $subject\n🕒 Hour: $hour\n📅 Date: $formattedDate';
+    final displayCode = (subjectCode != null && subjectCode.isNotEmpty)
+        ? subjectCode
+        : resolved.subjectCode;
+    final displayName = resolved.subjectName;
+    final displayTeacher = teacherName ?? resolved.teacherName;
+    final formattedDate = resolved.formattedDate;
+    final dayName = resolved.dayName;
+
+    final String title = displayCode.isNotEmpty
+        ? '🚨 Absent: $displayCode • $displayName'
+        : '🚨 Absent: $displayName';
+
+    final String collapsedBody = '${dayName.isNotEmpty ? "$dayName • " : ""}Period $hour • $formattedDate';
+
+    final buffer = StringBuffer();
+    if (displayCode.isNotEmpty) buffer.writeln('📌 Code: $displayCode');
+    buffer.writeln('📚 Subject: $displayName');
+    if (displayTeacher != null && displayTeacher.isNotEmpty) {
+      buffer.writeln('👤 Faculty: $displayTeacher');
+    }
+    buffer.writeln('🕒 Period: $hour');
+    buffer.writeln('📅 Date: ${dayName.isNotEmpty ? "$dayName, " : ""}$formattedDate');
+
+    final String expandedBody = buffer.toString().trim();
 
     final AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
       'absent_tracker_channel',
@@ -176,7 +198,7 @@ class NotificationsService {
       styleInformation: BigTextStyleInformation(
         expandedBody,
         contentTitle: title,
-        summaryText: 'Hour $hour • $formattedDate',
+        summaryText: collapsedBody,
       ),
     );
     final NotificationDetails platformChannelSpecifics = NotificationDetails(
@@ -237,6 +259,17 @@ class NotificationsService {
     return newAbsences;
   }
 
+  /// Updates and broadcasts the current unread absence notification count
+  Future<int> updateUnreadCount() async {
+    try {
+      final absences = await getNewAbsences();
+      unreadCountNotifier.value = absences.length;
+      return absences.length;
+    } catch (_) {
+      return unreadCountNotifier.value;
+    }
+  }
+
   /// Called after a refresh to trigger push notifications for newly found absences.
   Future<void> runDiffAndNotify() async {
     try {
@@ -255,7 +288,7 @@ class NotificationsService {
         final subject = absence['subject'];
         final hour = absence['hour'];
         
-        // Clean, structured phone notification
+        // Clean, structured phone notification with subject code & faculty
         await showAbsenceNotification(
           subject: subject.toString(),
           hour: hour.toString(),
@@ -269,7 +302,7 @@ class NotificationsService {
       if (hasNewNotifs) {
         await prefs.setString(_keyNotifiedData, jsonEncode(notified));
       }
-      // Note: We don't mark them as read here. They stay "new" until the user views the Notifications screen.
+      await updateUnreadCount();
     } catch (e) {
       debugPrint('[NOTIF] runDiffAndNotify error: $e');
     }
@@ -307,13 +340,14 @@ class NotificationsService {
 
       await prefs.setString(_keyNotifiedData, jsonEncode(notified));
       await prefs.setString(_keyBaselineData, jsonEncode(baseline));
+      await updateUnreadCount();
       debugPrint('[NOTIF] Seeded month baseline for first-time month load');
     } catch (e) {
       debugPrint('[NOTIF] seedMonthBaseline error: $e');
     }
   }
 
-  /// Called when the user opens the Notifications screen, moving new absences into the baseline.
+  /// Called when the user marks all absences as read
   Future<void> markAllAsRead() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -326,6 +360,7 @@ class NotificationsService {
       }
       
       await prefs.setString(_keyBaselineData, jsonEncode(baseline));
+      await updateUnreadCount();
     } catch (e) {
       debugPrint('[NOTIF] markAllAsRead error: $e');
     }
@@ -341,6 +376,7 @@ class NotificationsService {
       baseline[key] = true;
       
       await prefs.setString(_keyBaselineData, jsonEncode(baseline));
+      await updateUnreadCount();
     } catch (e) {
       debugPrint('[NOTIF] markAsRead error: $e');
     }
@@ -352,6 +388,7 @@ class NotificationsService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_keyBaselineData);
       await prefs.remove(_keyNotifiedData);
+      unreadCountNotifier.value = 0;
       debugPrint('[NOTIF] Cleared all notification baselines');
     } catch (e) {
       debugPrint('[NOTIF] clearNotificationsData error: $e');

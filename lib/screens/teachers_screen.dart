@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../services/etlab_api_service.dart';
 import '../widgets/page_header.dart';
-import 'notifications_screen.dart';
 import 'profile_screen.dart';
 
 class TeachersScreen extends StatefulWidget {
@@ -56,18 +55,7 @@ class _TeachersScreenState extends State<TeachersScreen> {
                   tooltip: 'Refresh',
                   onTap: _loadTeachers,
                 ),
-                HeaderAction(
-                  icon: Icons.notifications_outlined,
-                  tooltip: 'Notifications',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const NotificationsScreen(),
-                      ),
-                    );
-                  },
-                ),
+                const NotificationBellAction(),
                 const ProfileAvatarAction(),
               ],
             ),

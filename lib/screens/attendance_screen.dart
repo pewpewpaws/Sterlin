@@ -4,7 +4,6 @@ import '../services/etlab_api_service.dart';
 import '../widgets/attendance_summary.dart';
 import '../widgets/month_calendar.dart';
 import '../widgets/page_header.dart';
-import 'notifications_screen.dart';
 import 'profile_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
@@ -189,18 +188,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               PageHeader(
                 title: 'Attendance',
                 actions: [
-                  HeaderAction(
-                    icon: Icons.notifications_outlined,
-                    tooltip: 'Notifications',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const NotificationsScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                  const NotificationBellAction(),
                   const ProfileAvatarAction(),
                 ],
               ),

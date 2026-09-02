@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../screens/notifications_screen.dart';
+import '../services/notifications_service.dart';
 
 /// Top-left page title treatment.
 ///
@@ -73,12 +75,14 @@ class HeaderAction extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback? onTap;
+  final bool showBadge;
 
   const HeaderAction({
     super.key,
     required this.icon,
     required this.tooltip,
     this.onTap,
+    this.showBadge = false,
   });
 
   @override
@@ -97,13 +101,68 @@ class HeaderAction extends StatelessWidget {
           child: SizedBox(
             width: 42,
             height: 42,
-            child: Icon(
-              icon,
-              size: 20,
-              color: theme.colorScheme.onSurfaceVariant,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                if (showBadge)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.error,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.surfaceContainerLow,
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Reusable Notification Bell Action with automatic unread badge indicator.
+class NotificationBellAction extends StatelessWidget {
+  final Key? actionKey;
+  final VoidCallback? onTap;
+
+  const NotificationBellAction({super.key, this.actionKey, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<int>(
+      valueListenable: NotificationsService.unreadCountNotifier,
+      builder: (context, count, _) => HeaderAction(
+        key: actionKey,
+        icon: count > 0
+            ? Icons.notifications_active_outlined
+            : Icons.notifications_outlined,
+        tooltip: 'Notifications',
+        showBadge: count > 0,
+        onTap: onTap ??
+            () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const NotificationsScreen(),
+                ),
+              );
+              NotificationsService().updateUnreadCount();
+            },
       ),
     );
   }

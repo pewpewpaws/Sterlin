@@ -9,7 +9,6 @@ import '../widgets/attendance_summary.dart';
 import '../widgets/next_class_card.dart';
 import '../widgets/navigation_tutorial.dart';
 import '../widgets/page_header.dart';
-import 'notifications_screen.dart';
 import 'profile_screen.dart';
 
 enum DashboardWidgetType { nextClass, timetable, attendance }
@@ -71,6 +70,7 @@ class DashboardScreenState extends State<DashboardScreen> {
     _loadDataFromApi();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationsService().updateUnreadCount();
       if (mounted && EtlabApiService().profileData != null) {
         _refreshData();
         BackgroundService.scheduleNextRefresh();
@@ -375,18 +375,8 @@ class DashboardScreenState extends State<DashboardScreen> {
                     tooltip: 'Refresh Data',
                     onTap: _refreshData,
                   ),
-                  HeaderAction(
-                    key: NavigationTutorial.bellKey,
-                    icon: Icons.notifications_outlined,
-                    tooltip: 'Notifications',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const NotificationsScreen(),
-                        ),
-                      );
-                    },
+                  NotificationBellAction(
+                    actionKey: NavigationTutorial.bellKey,
                   ),
                   const ProfileAvatarAction(),
                 ],
