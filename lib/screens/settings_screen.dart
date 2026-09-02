@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/app_logger_service.dart';
@@ -237,247 +238,281 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   void _showBackgroundSyncDialog() {
+    final isDesktop = defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS;
     final status = _backgroundStatus?['status'] as String? ?? 'optimized';
     final isRestricted =
         _backgroundStatus?['isBackgroundRestricted'] as bool? ?? false;
     final isXiaomi = _backgroundStatus?['isXiaomi'] as bool? ?? false;
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        final theme = Theme.of(context);
-        final isDark = theme.brightness == Brightness.dark;
+    Widget buildSheet(BuildContext ctx, StateSetter setSheetState) {
+      final theme = Theme.of(ctx);
+      final isDark = theme.brightness == Brightness.dark;
+      final curStatus = _backgroundStatus?['status'] as String? ?? status;
+      final isUnrestricted = curStatus == 'unrestricted';
 
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            final curStatus = _backgroundStatus?['status'] as String? ?? status;
-            final isUnrestricted = curStatus == 'unrestricted';
-
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 4,
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color:
-                              theme.colorScheme.onSurfaceVariant.withAlpha(80),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isDesktop)
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurfaceVariant.withAlpha(80),
+                      borderRadius: BorderRadius.circular(2),
                     ),
-                    Row(
+                  ),
+                ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isUnrestricted
+                          ? (isDark
+                              ? const Color(0xFF14532D)
+                              : const Color(0xFFDCFCE7))
+                          : theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      isUnrestricted
+                          ? Icons.check_circle_outline
+                          : Icons.battery_charging_full_rounded,
+                      color: isUnrestricted
+                          ? (isDark
+                              ? const Color(0xFF4ADE80)
+                              : const Color(0xFF15803D))
+                          : theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: isUnrestricted
-                                ? (isDark
-                                    ? const Color(0xFF14532D)
-                                    : const Color(0xFFDCFCE7))
-                                : theme.colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            isUnrestricted
-                                ? Icons.check_circle_outline
-                                : Icons.battery_charging_full_rounded,
-                            color: isUnrestricted
-                                ? (isDark
-                                    ? const Color(0xFF4ADE80)
-                                    : const Color(0xFF15803D))
-                                : theme.colorScheme.onPrimaryContainer,
+                        Text(
+                          'Background Activity & Sync',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Background Activity & Sync',
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                isUnrestricted
-                                    ? 'Running smoothly without limits'
-                                    : 'May be throttled by battery saver',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
+                        Text(
+                          isUnrestricted
+                              ? 'Running smoothly without limits'
+                              : 'May be throttled by battery saver',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                  ),
+                  if (isDesktop)
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
 
-                    // Status Summary Banner
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: isUnrestricted
+              // Status Summary Banner
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isUnrestricted
+                      ? (isDark
+                          ? const Color(0xFF14532D).withAlpha(120)
+                          : const Color(0xFFDCFCE7))
+                      : (isRestricted
+                          ? (isDark
+                              ? const Color(0xFF7F1D1D).withAlpha(120)
+                              : const Color(0xFFFEE2E2))
+                          : theme.colorScheme.surfaceContainerHigh),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isUnrestricted
+                        ? (isDark
+                            ? const Color(0xFF4ADE80).withAlpha(120)
+                            : const Color(0xFF86EFAC))
+                        : (isRestricted
                             ? (isDark
-                                ? const Color(0xFF14532D).withAlpha(120)
-                                : const Color(0xFFDCFCE7))
-                            : (isRestricted
-                                ? (isDark
-                                    ? const Color(0xFF7F1D1D).withAlpha(120)
-                                    : const Color(0xFFFEE2E2))
-                                : theme.colorScheme.surfaceContainerHigh),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isUnrestricted
+                                ? const Color(0xFFF87171).withAlpha(120)
+                                : const Color(0xFFFCA5A5))
+                            : theme.colorScheme.outlineVariant.withAlpha(80)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isUnrestricted
+                          ? Icons.verified_user_outlined
+                          : (isRestricted
+                              ? Icons.warning_amber_rounded
+                              : Icons.info_outline),
+                      size: 20,
+                      color: isUnrestricted
+                          ? (isDark
+                              ? const Color(0xFF4ADE80)
+                              : const Color(0xFF15803D))
+                          : (isRestricted
                               ? (isDark
-                                  ? const Color(0xFF4ADE80).withAlpha(120)
-                                  : const Color(0xFF86EFAC))
-                              : (isRestricted
-                                  ? (isDark
-                                      ? const Color(0xFFF87171).withAlpha(120)
-                                      : const Color(0xFFFCA5A5))
-                                  : theme.colorScheme.outlineVariant
-                                      .withAlpha(80)),
-                        ),
-                      ),
-                      child: Row(
+                                  ? const Color(0xFFF87171)
+                                  : const Color(0xFFDC2626))
+                              : theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
+                          Text(
                             isUnrestricted
-                                ? Icons.verified_rounded
+                                ? 'Activity Status: Unrestricted'
                                 : (isRestricted
-                                    ? Icons.error_outline_rounded
-                                    : Icons.info_outline_rounded),
-                            size: 20,
-                            color: isUnrestricted
-                                ? (isDark
-                                    ? const Color(0xFF4ADE80)
-                                    : const Color(0xFF15803D))
-                                : (isRestricted
-                                    ? (isDark
-                                        ? const Color(0xFFF87171)
-                                        : const Color(0xFFDC2626))
-                                    : theme.colorScheme.primary),
+                                    ? 'Activity Status: Restricted'
+                                    : 'Activity Status: Optimized (Standard)'),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: isUnrestricted
+                                  ? (isDark
+                                      ? const Color(0xFF4ADE80)
+                                      : const Color(0xFF15803D))
+                                  : (isRestricted
+                                      ? (isDark
+                                          ? const Color(0xFFF87171)
+                                          : const Color(0xFFDC2626))
+                                      : theme.colorScheme.onSurface),
+                            ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  isUnrestricted
-                                      ? 'Activity Status: Unrestricted'
-                                      : (isRestricted
-                                          ? 'Activity Status: Restricted'
-                                          : 'Activity Status: Optimized (Standard)'),
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 13,
-                                    color: isUnrestricted
-                                        ? (isDark
-                                            ? const Color(0xFF4ADE80)
-                                            : const Color(0xFF15803D))
-                                        : (isRestricted
-                                            ? (isDark
-                                                ? const Color(0xFFF87171)
-                                                : const Color(0xFFDC2626))
-                                            : theme.colorScheme.onSurface),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  isUnrestricted
-                                      ? 'Sterlin is exempt from battery saver restrictions. Widgets and absence notifications update on time.'
-                                      : (isRestricted
-                                          ? 'Android is blocking background tasks for this app. You must set Battery to "Unrestricted" or "Optimized" in App Settings.'
-                                          : 'Android may throttle periodic background sync when your phone is asleep. Setting battery to "Unrestricted" ensures immediate widget updates.'),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
+                          const SizedBox(height: 4),
+                          Text(
+                            isUnrestricted
+                                ? 'Sterlin is exempt from battery saver restrictions. Widgets and absence notifications update on time.'
+                                : (isRestricted
+                                    ? 'Android is blocking background tasks for this app. You must set Battery to "Unrestricted" or "Optimized" in App Settings.'
+                                    : 'Android may throttle periodic background sync when your phone is asleep. Setting battery to "Unrestricted" ensures immediate widget updates.'),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-
-                    // Actions
-                    if (!isUnrestricted) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          icon: const Icon(Icons.bolt),
-                          label: const Text('Request Unrestricted Mode'),
-                          onPressed: () async {
-                            const platform = MethodChannel(
-                              'com.pewpewpaws.sterlin/battery',
-                            );
-                            await platform.invokeMethod(
-                              'requestIgnoreBatteryOptimizations',
-                            );
-                            await _loadBackgroundStatus();
-                            setSheetState(() {});
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.settings_outlined),
-                        label: const Text('Open App Battery Settings'),
-                        onPressed: () async {
-                          const platform = MethodChannel(
-                            'com.pewpewpaws.sterlin/battery',
-                          );
-                          await platform.invokeMethod('openAppBatterySettings');
-                        },
-                      ),
-                    ),
-
-                    if (isXiaomi) ...[
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.shield_outlined),
-                          label: const Text(
-                            'Xiaomi / HyperOS Autostart Settings',
-                          ),
-                          onPressed: () async {
-                            const platform = MethodChannel(
-                              'com.pewpewpaws.sterlin/battery',
-                            );
-                            await platform.invokeMethod('openAutoStartSettings');
-                          },
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
-            );
-          },
-        );
-      },
-    );
+              const SizedBox(height: 16),
+
+              // Actions
+              if (!isUnrestricted) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.bolt),
+                    label: const Text('Request Unrestricted Mode'),
+                    onPressed: () async {
+                      try {
+                        const platform = MethodChannel(
+                          'com.pewpewpaws.sterlin/battery',
+                        );
+                        await platform.invokeMethod(
+                          'requestIgnoreBatteryOptimizations',
+                        );
+                        await _loadBackgroundStatus();
+                        setSheetState(() {});
+                      } catch (e) {
+                        debugPrint('[ERROR] requestIgnoreBatteryOptimizations: $e');
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.settings_outlined),
+                  label: const Text('Open App Battery Settings'),
+                  onPressed: () async {
+                    try {
+                      const platform = MethodChannel(
+                        'com.pewpewpaws.sterlin/battery',
+                      );
+                      await platform.invokeMethod('openAppBatterySettings');
+                    } catch (e) {
+                      debugPrint('[ERROR] openAppBatterySettings: $e');
+                    }
+                  },
+                ),
+              ),
+
+              if (isXiaomi) ...[
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.shield_outlined),
+                    label: const Text(
+                      'Xiaomi / HyperOS Autostart Settings',
+                    ),
+                    onPressed: () async {
+                      try {
+                        const platform = MethodChannel(
+                          'com.pewpewpaws.sterlin/battery',
+                        );
+                        await platform.invokeMethod('openAutoStartSettings');
+                      } catch (e) {
+                        debugPrint('[ERROR] openAutoStartSettings: $e');
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (isDesktop) {
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: StatefulBuilder(
+              builder: (ctx, setSheetState) => buildSheet(ctx, setSheetState),
+            ),
+          ),
+        ),
+      );
+    } else {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (sheetContext) => StatefulBuilder(
+          builder: (ctx, setSheetState) => buildSheet(ctx, setSheetState),
+        ),
+      );
+    }
   }
 
   Widget _buildBackgroundStatusBadge(ThemeData theme) {
@@ -1158,28 +1193,30 @@ class _SettingsScreenState extends State<SettingsScreen>
                               },
                             ),
                             const Divider(),
-                            ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              title: const Text(
-                                'Background Activity & Sync',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                            if (defaultTargetPlatform == TargetPlatform.android) ...[
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: const Text(
+                                  'Background Activity & Sync',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                subtitle: Text(
+                                  _backgroundStatus == null
+                                      ? 'Check background activity and battery optimization status.'
+                                      : switch (_backgroundStatus!['status']) {
+                                          'unrestricted' =>
+                                            'Unrestricted • Widgets and alerts sync reliably in background.',
+                                          'restricted' =>
+                                            'Restricted • Background tasks blocked by system. Tap to fix.',
+                                          _ =>
+                                            'Optimized • May be delayed by battery saver. Tap to configure.',
+                                        },
+                                ),
+                                trailing: _buildBackgroundStatusBadge(theme),
+                                onTap: _showBackgroundSyncDialog,
                               ),
-                              subtitle: Text(
-                                _backgroundStatus == null
-                                    ? 'Check background activity and battery optimization status.'
-                                    : switch (_backgroundStatus!['status']) {
-                                        'unrestricted' =>
-                                          'Unrestricted • Widgets and alerts sync reliably in background.',
-                                        'restricted' =>
-                                          'Restricted • Background tasks blocked by system. Tap to fix.',
-                                        _ =>
-                                          'Optimized • May be delayed by battery saver. Tap to configure.',
-                                      },
-                              ),
-                              trailing: _buildBackgroundStatusBadge(theme),
-                              onTap: _showBackgroundSyncDialog,
-                            ),
-                            const Divider(),
+                              const Divider(),
+                            ],
                           ],
                           ListTile(
                             contentPadding: EdgeInsets.zero,

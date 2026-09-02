@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../services/etlab_api_service.dart';
@@ -25,102 +26,132 @@ class AttendanceSummaryWidget extends StatefulWidget {
     BuildContext context, {
     VoidCallback? onTargetChanged,
   }) async {
-    int currentIntPct = (EtlabApiService().targetAttendancePct * 100).round().clamp(75, 95);
+    int currentIntPct =
+        (EtlabApiService().targetAttendancePct * 100).round().clamp(75, 95);
     final presets = [75, 80, 85, 90, 95];
 
-    await showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final theme = Theme.of(context);
+    final isDesktop = defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS;
 
-            Future<void> applyTarget() async {
-              await EtlabApiService()
-                  .setTargetAttendancePct(currentIntPct / 100.0);
-              onTargetChanged?.call();
-            }
+    Widget buildContent(BuildContext ctx, StateSetter setModalState) {
+      final theme = Theme.of(ctx);
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Target Attendance',
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
+      Future<void> applyTarget() async {
+        await EtlabApiService().setTargetAttendancePct(currentIntPct / 100.0);
+        onTargetChanged?.call();
+      }
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Target Attendance',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Choose your target percentage (75% min) to recalculate how many classes you can skip or need to recover.',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
-                  ),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: Text(
-                      '$currentIntPct%',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Slider(
-                    value: currentIntPct.toDouble(),
-                    min: 75,
-                    max: 95,
-                    divisions: 20,
-                    label: '$currentIntPct%',
-                    onChanged: (val) {
-                      setModalState(() {
-                        currentIntPct = val.round();
-                      });
-                    },
-                    onChangeEnd: (_) => applyTarget(),
-                  ),
-                  const SizedBox(height: 8),
-                  Center(
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.center,
-                      children: presets.map((p) {
-                        final isSelected = currentIntPct == p;
-                        return FilterChip(
-                          selected: isSelected,
-                          label: Text('$p%'),
-                          onSelected: (_) {
-                            setModalState(() {
-                              currentIntPct = p;
-                            });
-                            applyTarget();
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const SizedBox(height: 48),
-                ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Choose your target percentage (75% min) to recalculate how many classes you can skip or need to recover.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.outline,
               ),
-            );
-          },
-        );
-      },
-    );
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Text(
+                '$currentIntPct%',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Semantics(
+              slider: true,
+              value: '$currentIntPct%',
+              child: Slider(
+                value: currentIntPct.toDouble(),
+                min: 75,
+                max: 95,
+                divisions: 20,
+                label: '$currentIntPct%',
+                onChanged: (val) {
+                  setModalState(() {
+                    currentIntPct = val.round();
+                  });
+                },
+                onChangeEnd: (_) => applyTarget(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: presets.map((p) {
+                  final isSelected = currentIntPct == p;
+                  return FilterChip(
+                    selected: isSelected,
+                    label: Text('$p%'),
+                    onSelected: (_) {
+                      setModalState(() {
+                        currentIntPct = p;
+                      });
+                      applyTarget();
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+            if (!isDesktop) const SizedBox(height: 20),
+          ],
+        ),
+      );
+    }
+
+    if (isDesktop) {
+      await showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: StatefulBuilder(
+              builder: (ctx, setModalState) => buildContent(ctx, setModalState),
+            ),
+          ),
+        ),
+      );
+    } else {
+      await showModalBottomSheet(
+        context: context,
+        useSafeArea: true,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setModalState) => buildContent(ctx, setModalState),
+        ),
+      );
+    }
   }
 
   @override
