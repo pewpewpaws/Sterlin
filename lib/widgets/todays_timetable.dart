@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
+import '../screens/main_navigation_shell.dart';
 
 class TodaysTimetableWidget extends StatefulWidget {
   final Map<String, dynamic>? profileData;
@@ -303,120 +304,134 @@ class _ClassCard extends StatelessWidget {
             width: isCurrent ? 2 : 1,
           ),
         ),
+        clipBehavior: Clip.antiAlias,
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Container(
-          width: 235,
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isCurrent
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isCurrent
-                                ? 'NOW • ${session.sessionType.toUpperCase()}'
-                                : session.sessionType.toUpperCase(),
-                            style: theme.textTheme.labelSmall?.copyWith(
+        child: InkWell(
+          onTap: () {
+            final target = session.courseName.isNotEmpty
+                ? session.courseName
+                : session.courseId;
+            if (target.isNotEmpty) {
+              MainNavigationShell.navigateToAttendance(
+                context,
+                highlightSubject: target,
+              );
+            }
+          },
+          child: Container(
+            width: 235,
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
                               color: isCurrent
-                                  ? theme.colorScheme.onPrimary
-                                  : null,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isCurrent
+                                  ? 'NOW • ${session.sessionType.toUpperCase()}'
+                                  : session.sessionType.toUpperCase(),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: isCurrent
+                                    ? theme.colorScheme.onPrimary
+                                    : null,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
                             ),
                           ),
-                        ),
-                        if (session.courseId.isNotEmpty && session.courseId.toUpperCase() != session.courseName.toUpperCase()) ...[
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primaryContainer,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                session.courseId.toUpperCase(),
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 10,
+                          if (session.courseId.isNotEmpty && session.courseId.toUpperCase() != session.courseName.toUpperCase()) ...[
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                child: Text(
+                                  session.courseId.toUpperCase(),
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  if (session.status != null) _buildStatusBadge(theme, session.status!),
-                ],
-              ),
-              Text(
-                session.courseName,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
+                    const SizedBox(width: 4),
+                    if (session.status != null) _buildStatusBadge(theme, session.status!),
+                  ],
                 ),
-              ),
-              if (session.teacherName != null && session.teacherName!.isNotEmpty)
+                Text(
+                  session.courseName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
+                  ),
+                ),
+                if (session.teacherName != null && session.teacherName!.isNotEmpty)
+                  Row(
+                    children: [
+                      Icon(Icons.person_outline, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          session.teacherName!,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 Row(
                   children: [
-                    Icon(Icons.person_outline, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                    Icon(Icons.access_time, size: 14, color: theme.colorScheme.onSurfaceVariant),
                     const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        session.teacherName!,
+                    Text(
+                      "${session.start.format(context)} - ${session.end.format(context)}",
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+                if (session.room != null && session.room!.isNotEmpty)
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(
+                        session.room!,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
-                ),
-              Row(
-                children: [
-                  Icon(Icons.access_time, size: 14, color: theme.colorScheme.onSurfaceVariant),
-                  const SizedBox(width: 4),
-                  Text(
-                    "${session.start.format(context)} - ${session.end.format(context)}",
-                    style: theme.textTheme.bodySmall,
+                    ],
                   ),
-                ],
-              ),
-              if (session.room != null && session.room!.isNotEmpty)
-                Row(
-                  children: [
-                    Icon(Icons.location_on_outlined, size: 14, color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 4),
-                    Text(
-                      session.room!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

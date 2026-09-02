@@ -7,8 +7,6 @@ class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   static const Map<String, String> _detailLabels = {
-    'register_no': 'Register Number',
-    'student_id': 'Student ID',
     'admno': 'Admission No',
     'admission_no': 'Admission No',
     'course_code': 'Course',
@@ -56,9 +54,13 @@ class ProfileScreen extends StatelessWidget {
     }
 
     final name = profile['name']?.toString() ?? 'Student';
-    final regNo =
-        profile['register_no']?.toString() ??
-        profile['student_id']?.toString() ??
+    final regNo = (profile['register_no'] ??
+            profile['reg_no'] ??
+            profile['regno'] ??
+            profile['reg_num'] ??
+            profile['register_number'])
+        ?.toString()
+        .trim() ??
         '';
     final sem = profile['curnt_sem']?.toString() ?? '';
     final photoUrl = profile['url']?.toString();

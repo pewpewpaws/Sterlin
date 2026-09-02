@@ -9,6 +9,7 @@ import '../widgets/attendance_summary.dart';
 import '../widgets/next_class_card.dart';
 import '../widgets/navigation_tutorial.dart';
 import '../widgets/page_header.dart';
+import 'main_navigation_shell.dart';
 import 'profile_screen.dart';
 
 enum DashboardWidgetType { nextClass, timetable, attendance }
@@ -331,7 +332,16 @@ class DashboardScreenState extends State<DashboardScreen> {
       case DashboardWidgetType.attendance:
         return AttendanceSummaryWidget(
           attendanceList: _todaysAttendance,
+          overallAttendanceList: _attendance,
           dutyLeaveCountsAsPresent: _dutyLeaveCountsAsPresent,
+          onSubjectTap: (subject) {
+            MainNavigationShell.navigateToAttendance(
+              context,
+              highlightSubject: subject.courseName.isNotEmpty
+                  ? subject.courseName
+                  : subject.courseId,
+            );
+          },
           onTargetChanged: () {
             _loadDataFromApi();
           },

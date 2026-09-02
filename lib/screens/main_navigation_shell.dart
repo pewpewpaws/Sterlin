@@ -10,15 +10,53 @@ import 'teachers_screen.dart';
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({super.key});
 
+  static MainNavigationShellState? of(BuildContext context) {
+    return context.findAncestorStateOfType<MainNavigationShellState>();
+  }
+
+  static void navigateToAttendance(
+    BuildContext context, {
+    String? highlightSubject,
+    DateTime? targetDate,
+    int? initialTabIndex,
+  }) {
+    final shell = of(context);
+    if (shell != null) {
+      shell.openAttendanceTab(
+        highlightSubject: highlightSubject,
+        targetDate: targetDate,
+        initialTabIndex: initialTabIndex,
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AttendanceScreen(
+            highlightSubject: highlightSubject,
+            targetDate: targetDate,
+            initialTabIndex: initialTabIndex,
+          ),
+        ),
+      );
+    }
+  }
+
+  static void navigateToTab(BuildContext context, int index) {
+    final shell = of(context);
+    shell?.switchToTab(index);
+  }
+
   @override
-  State<MainNavigationShell> createState() => _MainNavigationShellState();
+  State<MainNavigationShell> createState() => MainNavigationShellState();
 }
-class _MainNavigationShellState extends State<MainNavigationShell>
+
+class MainNavigationShellState extends State<MainNavigationShell>
     with SingleTickerProviderStateMixin {
   // Notifications lives in the top bar of each page, not in the dock.
   // Attendance sits right next to Home.
   int _currentIndex = 1;
   final Map<String, Widget> _cachedScreens = {};
+  int _attendanceKeyCounter = 0;
 
   late final AnimationController _swapC = AnimationController(
     vsync: this,
@@ -46,6 +84,34 @@ class _MainNavigationShellState extends State<MainNavigationShell>
     _swapC.dispose();
     _swapFade.dispose();
     super.dispose();
+  }
+
+  void switchToTab(int index) {
+    if (index == _currentIndex) return;
+    NavigationTutorial.reportTab(index);
+    setState(() {
+      _currentIndex = index;
+    });
+    _swapC.forward(from: 0);
+  }
+
+  void openAttendanceTab({
+    String? highlightSubject,
+    DateTime? targetDate,
+    int? initialTabIndex,
+  }) {
+    NavigationTutorial.reportTab(2);
+    setState(() {
+      _currentIndex = 2;
+      _attendanceKeyCounter++;
+      _cachedScreens['attendance'] = AttendanceScreen(
+        key: ValueKey('attendance_$_attendanceKeyCounter'),
+        highlightSubject: highlightSubject,
+        targetDate: targetDate,
+        initialTabIndex: initialTabIndex ?? (targetDate != null ? 1 : 0),
+      );
+    });
+    _swapC.forward(from: 0);
   }
 
   static const List<NavDestinationItem> _allNavItems = [
@@ -79,7 +145,9 @@ class _MainNavigationShellState extends State<MainNavigationShell>
     return _cachedScreens.putIfAbsent(id, () {
       switch (id) {
         case 'attendance':
-          return const AttendanceScreen();
+          return AttendanceScreen(
+            key: ValueKey('attendance_$_attendanceKeyCounter'),
+          );
         case 'faculty':
           return const TeachersScreen();
         case 'home':

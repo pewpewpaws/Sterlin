@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../services/etlab_api_service.dart';
-import '../services/safeword_service.dart';
 
 class AttendanceSummaryWidget extends StatefulWidget {
   final List<CourseAttendance> attendanceList;
+  final List<CourseAttendance>? overallAttendanceList;
   final bool dutyLeaveCountsAsPresent;
   final VoidCallback? onTargetChanged;
   final String? highlightSubject;
+  final void Function(CourseAttendance subject)? onSubjectTap;
 
   const AttendanceSummaryWidget({
     super.key,
     required this.attendanceList,
+    this.overallAttendanceList,
     this.dutyLeaveCountsAsPresent = true,
     this.onTargetChanged,
     this.highlightSubject,
+    this.onSubjectTap,
   });
 
   static Future<void> showTargetDialog(
@@ -126,17 +129,56 @@ class AttendanceSummaryWidget extends StatefulWidget {
 class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
   final GlobalKey _highlightKey = GlobalKey();
   String? _ensuredHighlight;
+  String? _activeHighlight;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeHighlight = widget.highlightSubject;
+  }
+
+  @override
+  void didUpdateWidget(covariant AttendanceSummaryWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.highlightSubject != widget.highlightSubject) {
+      _activeHighlight = widget.highlightSubject;
+      _ensuredHighlight = null;
+    }
+  }
+
+  void _clearHighlight() {
+    if (_activeHighlight != null) {
+      setState(() {
+        _activeHighlight = null;
+      });
+    }
+  }
 
   bool _matchesHighlight(CourseAttendance item) {
-    final query = widget.highlightSubject?.trim().toLowerCase();
+    final query = _activeHighlight?.trim().toLowerCase();
     if (query == null || query.isEmpty) return false;
-    return item.courseName.toLowerCase().contains(query) ||
-        query.contains(item.courseName.toLowerCase()) ||
-        item.courseId.toLowerCase() == query;
+    final cName = item.courseName.toLowerCase();
+    final cId = item.courseId.toLowerCase();
+    if (cId.isNotEmpty && (cId == query || query.contains(cId) || cId.contains(query))) {
+      return true;
+    }
+    if (cName == query || cName.contains(query) || query.contains(cName)) {
+      return true;
+    }
+    final cleanQuery = query.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final cleanName = cName.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final cleanId = cId.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    if (cleanQuery.isNotEmpty && cleanName.isNotEmpty && (cleanName.contains(cleanQuery) || cleanQuery.contains(cleanName))) {
+      return true;
+    }
+    if (cleanQuery.isNotEmpty && cleanId.isNotEmpty && (cleanId.contains(cleanQuery) || cleanQuery.contains(cleanId))) {
+      return true;
+    }
+    return false;
   }
 
   void _ensureHighlightVisible() {
-    final target = widget.highlightSubject;
+    final target = _activeHighlight;
     if (target == null || widget.attendanceList.isEmpty) return;
     if (_ensuredHighlight == target) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -171,80 +213,110 @@ class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
     final targetPct = EtlabApiService().targetAttendancePct;
     _ensureHighlightVisible();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "ATTENDANCE SUMMARY",
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              InkWell(
-                onTap: _openTargetDialog,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: theme.colorScheme.primary.withAlpha(100)),
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notif) {
+        if (notif is UserScrollNotification || notif is ScrollStartNotification) {
+          _clearHighlight();
+        }
+        return false;
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "ATTENDANCE SUMMARY",
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.1,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.tune_outlined, size: 14, color: theme.colorScheme.onPrimaryContainer),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Target: ${(targetPct * 100).round()}%',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.bold,
+                ),
+                InkWell(
+                  onTap: _openTargetDialog,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: theme.colorScheme.primary.withAlpha(100)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.tune_outlined, size: 14, color: theme.colorScheme.onPrimaryContainer),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Target: ${(targetPct * 100).round()}%',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        if (widget.attendanceList.isNotEmpty)
-          _buildOverallCard(theme, targetPct),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: widget.attendanceList.length,
-          itemBuilder: (context, index) {
-            final item = widget.attendanceList[index];
-            final isHighlight = _matchesHighlight(item);
-            return Padding(
-              key: isHighlight ? _highlightKey : null,
-              padding: EdgeInsets.zero,
-              child: _AttendanceCard(
-                attendance: item,
-                dutyLeaveCountsAsPresent: widget.dutyLeaveCountsAsPresent,
-                highlighted: isHighlight,
-              ),
-            );
-          },
-        ),
-      ],
+          if (_effectiveOverallList.isNotEmpty || widget.attendanceList.isNotEmpty)
+            _buildOverallCard(theme, targetPct),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: widget.attendanceList.length,
+            itemBuilder: (context, index) {
+              final item = widget.attendanceList[index];
+              final isHighlight = _matchesHighlight(item);
+              return Padding(
+                key: isHighlight ? _highlightKey : null,
+                padding: EdgeInsets.zero,
+                child: _AttendanceCard(
+                  attendance: item,
+                  dutyLeaveCountsAsPresent: widget.dutyLeaveCountsAsPresent,
+                  highlighted: isHighlight,
+                  onTap: () {
+                    if (widget.onSubjectTap != null) {
+                      widget.onSubjectTap!(item);
+                    } else {
+                      _clearHighlight();
+                    }
+                  },
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
+  List<CourseAttendance> get _effectiveOverallList {
+    if (widget.overallAttendanceList != null &&
+        widget.overallAttendanceList!.isNotEmpty) {
+      return widget.overallAttendanceList!;
+    }
+    final api = EtlabApiService();
+    final allData = api.attendanceData ?? api.profileData;
+    if (allData != null) {
+      final parsed = DashboardDataMapper.parseAttendanceFromSubjects(allData);
+      if (parsed.isNotEmpty) return parsed;
+    }
+    return widget.attendanceList;
+  }
+
   ({int attended, int total, double pct}) _overallStats(bool dutyLeave) {
+    final list = _effectiveOverallList;
     int attended = 0;
     int total = 0;
-    for (final item in widget.attendanceList) {
+    for (final item in list) {
       total += dutyLeave
           ? item.classesAttended + item.classesOnDutyLeave + item.classesAbsent
           : item.classesAttended + item.classesAbsent;
@@ -256,12 +328,13 @@ class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
   }
 
   Widget _buildOverallCard(ThemeData theme, double targetPct) {
+    final overallList = _effectiveOverallList;
     final stats = _overallStats(widget.dutyLeaveCountsAsPresent);
     final pct = stats.pct;
-    final criticalCount = widget.attendanceList
+    final criticalCount = overallList
         .where((a) => a.calculatePercentage(dutyLeaveCountsAsPresent: widget.dutyLeaveCountsAsPresent) < a.requiredPercentage)
         .length;
-    final safeSkips = widget.attendanceList.fold<int>(
+    final safeSkips = overallList.fold<int>(
       0,
       (sum, a) => sum + a.calculateSafeSkips(dutyLeaveCountsAsPresent: widget.dutyLeaveCountsAsPresent),
     );
@@ -336,13 +409,12 @@ class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                ValueListenableBuilder<bool>(
-                  valueListenable: SafeWordService.unlocked,
-                  builder: (context, unlocked, _) {
+                Builder(
+                  builder: (context) {
                     final String line;
                     if (criticalCount > 0 || pct < targetPct) {
                       line = warningLine;
-                    } else if (unlocked && safeSkips > 0) {
+                    } else if (safeSkips > 0) {
                       line =
                           'On track · $safeSkips skippable class${safeSkips == 1 ? '' : 'es'} left';
                     } else {
@@ -370,11 +442,13 @@ class _AttendanceCard extends StatelessWidget {
   final CourseAttendance attendance;
   final bool dutyLeaveCountsAsPresent;
   final bool highlighted;
+  final VoidCallback? onTap;
 
   const _AttendanceCard({
     required this.attendance,
     required this.dutyLeaveCountsAsPresent,
     this.highlighted = false,
+    this.onTap,
   });
 
   @override
@@ -414,244 +488,190 @@ class _AttendanceCard extends StatelessWidget {
         : attendance.classesAttended;
     final attendedTotalText = "$attended / $total";
 
-    Widget card = Card(
+    return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainer,
+      elevation: highlighted ? 2 : 0,
+      color: highlighted
+          ? theme.colorScheme.primaryContainer.withAlpha(50)
+          : theme.colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withAlpha(100),
-          width: 1,
+          color: highlighted
+              ? theme.colorScheme.primary
+              : theme.colorScheme.outlineVariant.withAlpha(100),
+          width: highlighted ? 1.8 : 1,
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              attendance.courseName,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          if (attendance.courseId.trim().isNotEmpty) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme
-                                    .colorScheme.surfaceContainerHighest
-                                    .withAlpha(140),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
                               child: Text(
-                                attendance.courseId.trim(),
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  letterSpacing: 0.5,
+                                attendance.courseName,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (attendance.courseId.trim().isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme
+                                      .colorScheme.surfaceContainerHighest
+                                      .withAlpha(140),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  attendance.courseId.trim(),
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(statusIcon, color: color, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            statusText,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: color,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (attendance.classesOnDutyLeave > 0) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF713F12).withAlpha(150)
-                                    : const Color(0xFFFEF08A),
-                                borderRadius: BorderRadius.circular(4),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(statusIcon, color: color, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              statusText,
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: color,
+                                fontWeight: FontWeight.bold,
                               ),
-                              child: Text(
-                                "DL: ${attendance.classesOnDutyLeave}",
-                                style: theme.textTheme.labelSmall?.copyWith(
+                            ),
+                            if (attendance.classesOnDutyLeave > 0) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
                                   color: isDark
-                                      ? const Color(0xFFFDE047)
-                                      : const Color(0xFF854D0E),
-                                  fontWeight: FontWeight.bold,
+                                      ? const Color(0xFF713F12).withAlpha(150)
+                                      : const Color(0xFFFEF08A),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  "DL: ${attendance.classesOnDutyLeave}",
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: isDark
+                                        ? const Color(0xFFFDE047)
+                                        : const Color(0xFF854D0E),
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
+                        ),
+                        if (hintText.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            hintText,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: color,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        pctText,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
                       ),
                       const SizedBox(height: 4),
-                      ValueListenableBuilder<bool>(
-                        valueListenable: SafeWordService.unlocked,
-                        builder: (context, unlocked, _) {
-                          final showHint = unlocked || !isSafe;
-                          return showHint
-                              ? Text(
-                                  hintText,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: color,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                )
-                              : const SizedBox.shrink();
-                        },
+                      Text(
+                        attendedTotalText,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      pctText,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      attendedTotalText,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final barWidth = constraints.maxWidth;
-                return Stack(
-                  alignment: Alignment.centerLeft,
-                  children: [
-                    Container(
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.outlineVariant.withAlpha(70),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                    FractionallySizedBox(
-                      widthFactor: pct.clamp(0.0, 1.0),
-                      child: Container(
+                ],
+              ),
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final barWidth = constraints.maxWidth;
+                  return Stack(
+                    alignment: Alignment.centerLeft,
+                    children: [
+                      Container(
                         height: 4,
                         decoration: BoxDecoration(
-                          color: color,
+                          color: theme.colorScheme.outlineVariant.withAlpha(70),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      left: (attendance.requiredPercentage * barWidth)
-                          .clamp(2.0, barWidth - 2.0),
-                      child: Container(
-                        width: 2,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.onSurfaceVariant.withAlpha(160),
-                          borderRadius: BorderRadius.circular(1),
+                      FractionallySizedBox(
+                        widthFactor: pct.clamp(0.0, 1.0),
+                        child: Container(
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (!highlighted) return card;
-
-    return _GlowPulse(child: card);
-  }
-}
-
-class _GlowPulse extends StatefulWidget {
-  final Widget child;
-
-  const _GlowPulse({required this.child});
-
-  @override
-  State<_GlowPulse> createState() => _GlowPulseState();
-}
-
-class _GlowPulseState extends State<_GlowPulse>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1600),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = Theme.of(context).colorScheme.primary;
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        final t = _c.value;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withAlpha(140), width: 1.4),
-            boxShadow: [
-              BoxShadow(
-                color: color.withAlpha((60 + 70 * t).round()),
-                blurRadius: 14 + 6 * t,
-                spreadRadius: 0.5,
+                      Positioned(
+                        left: (attendance.requiredPercentage * barWidth)
+                            .clamp(2.0, barWidth - 2.0),
+                        child: Container(
+                          width: 2,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.onSurfaceVariant.withAlpha(160),
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: widget.child,
-          ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

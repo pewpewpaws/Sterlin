@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
+import '../screens/main_navigation_shell.dart';
 
 class NextClassCardWidget extends StatelessWidget {
   final List<ClassSession> sessions;
@@ -154,73 +155,87 @@ class NextClassCardWidget extends StatelessWidget {
             width: isCurrent ? 2 : 1,
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isCurrent
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      isCurrent ? 'CURRENT CLASS' : 'NEXT CLASS',
-                      style: theme.textTheme.labelSmall?.copyWith(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            final target = currentSession.courseName.isNotEmpty
+                ? currentSession.courseName
+                : currentSession.courseId;
+            if (target.isNotEmpty) {
+              MainNavigationShell.navigateToAttendance(
+                context,
+                highlightSubject: target,
+              );
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
                         color: isCurrent
-                            ? theme.colorScheme.onPrimary
-                            : theme.colorScheme.onSecondaryContainer,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.0,
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.secondaryContainer,
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                    ),
-                  ),
-                  Text(
-                    '${currentSession.start.format(context)} - ${currentSession.end.format(context)}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                currentSession.courseName,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  if (currentSession.room != null && currentSession.room!.isNotEmpty) ...[
-                    Icon(Icons.location_on_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 4),
-                    Text(currentSession.room!, style: theme.textTheme.bodySmall),
-                    const SizedBox(width: 16),
-                  ],
-                  if (currentSession.teacherName != null && currentSession.teacherName!.isNotEmpty) ...[
-                    Icon(Icons.person_outline, size: 16, color: theme.colorScheme.onSurfaceVariant),
-                    const SizedBox(width: 4),
-                    Expanded(
                       child: Text(
-                        currentSession.teacherName!,
-                        style: theme.textTheme.bodySmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        isCurrent ? 'CURRENT CLASS' : 'NEXT CLASS',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: isCurrent
+                              ? theme.colorScheme.onPrimary
+                              : theme.colorScheme.onSecondaryContainer,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${currentSession.start.format(context)} - ${currentSession.end.format(context)}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  currentSession.courseName,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    if (currentSession.room != null && currentSession.room!.isNotEmpty) ...[
+                      Icon(Icons.location_on_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(currentSession.room!, style: theme.textTheme.bodySmall),
+                      const SizedBox(width: 16),
+                    ],
+                    if (currentSession.teacherName != null && currentSession.teacherName!.isNotEmpty) ...[
+                      Icon(Icons.person_outline, size: 16, color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          currentSession.teacherName!,
+                          style: theme.textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
