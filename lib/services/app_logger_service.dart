@@ -145,7 +145,9 @@ class AppLoggerService {
     if (_logs.length > 300) {
       _logs.removeLast();
     }
-    logsNotifier.value = List.unmodifiable(_logs);
+    scheduleMicrotask(() {
+      logsNotifier.value = List.unmodifiable(_logs);
+    });
     _scheduleSave();
   }
 

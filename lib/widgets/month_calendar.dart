@@ -105,14 +105,16 @@ class _MonthCalendarState extends State<MonthCalendar> {
   Future<void> _loadMonth(DateTime month) async {
     final key = '${month.year}_${month.month}';
     final api = EtlabApiService();
+    final semId = api.profileData?['sem_id']?.toString() ?? '68';
 
     if (!_months.containsKey(key)) {
-      final mem = api.getMemoryCachedMonth(month.month, month.year);
+      final mem = api.getMemoryCachedMonth(month.month, month.year, semester: semId);
       if (mem != null) _months[key] = _parse(mem);
       if (!_months.containsKey(key)) {
         final cached = await api.getCachedMonthAttendance(
           month.month,
           month.year,
+          semester: semId,
         );
         if (cached != null && mounted) {
           setState(() => _months[key] = _parse(cached));
@@ -125,6 +127,7 @@ class _MonthCalendarState extends State<MonthCalendar> {
       final res = await api.fetchAttendanceByDayPeriod(
         month: month.month,
         year: month.year,
+        semester: semId,
       );
       if (res != null && mounted) {
         setState(() => _months[key] = _parse(res));
@@ -179,10 +182,14 @@ class _MonthCalendarState extends State<MonthCalendar> {
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => _clearHighlight(),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-        child: Column(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
         children: [
           // Summary strip
           Row(
@@ -323,7 +330,9 @@ class _MonthCalendarState extends State<MonthCalendar> {
         ],
       ),
     ),
-    );
+  ),
+),
+);
   }
 
   Widget _grid(
@@ -619,6 +628,7 @@ class _MonthCalendarState extends State<MonthCalendar> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       builder: (_) => _DaySheet(date: date, dayData: dayData),
     );
   }
