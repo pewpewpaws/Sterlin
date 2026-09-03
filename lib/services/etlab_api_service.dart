@@ -364,7 +364,9 @@ class EtlabApiService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is Map<String, dynamic>) {
-          if (semester == null || semester.isEmpty) {
+          if (semester == null ||
+              semester.isEmpty ||
+              semester == _profileData?['sem_id']?.toString()) {
             _attendanceData = data;
             await _saveSessionData();
           }
@@ -374,7 +376,7 @@ class EtlabApiService {
     } catch (_) {
       rethrow;
     }
-    return (semester == null || semester.isEmpty) ? _attendanceData : null;
+    return _attendanceData;
   }
 
   Future<Map<String, dynamic>?> fetchTeachers() async {
