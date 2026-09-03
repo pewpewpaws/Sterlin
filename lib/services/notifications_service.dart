@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
 import '../models/absence_detail.dart';
+import '../screens/notifications_screen.dart';
 import 'etlab_api_service.dart';
 import 'package:flutter/foundation.dart';
 
@@ -10,6 +14,9 @@ class NotificationsService {
   static final NotificationsService _instance = NotificationsService._internal();
   factory NotificationsService() => _instance;
   NotificationsService._internal();
+
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static bool _pendingOpenNotifications = false;
 
   final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
@@ -24,6 +31,40 @@ class NotificationsService {
   static const String _keyNotificationsEnabled = 'etlab_notifications_enabled';
   // Storage key for tracking if permission prompt dialog was shown
   static const String _keyHasPromptedPermission = 'etlab_notifications_has_prompted';
+
+  static bool consumePendingOpen() {
+    if (_pendingOpenNotifications) {
+      _pendingOpenNotifications = false;
+      return true;
+    }
+    return false;
+  }
+
+  static void checkAndOpenPendingNotification(BuildContext context) {
+    if (consumePendingOpen()) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+      );
+    }
+  }
+
+  static void openNotificationsPanel() {
+    if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
+      try {
+        windowManager.show();
+        windowManager.focus();
+      } catch (_) {}
+    }
+
+    final nav = navigatorKey.currentState;
+    if (nav != null) {
+      nav.push(
+        MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+      );
+    } else {
+      _pendingOpenNotifications = true;
+    }
+  }
 
   Future<void> init() async {
     if (_initialized) return;
@@ -51,7 +92,18 @@ class NotificationsService {
       );
       await _flutterLocalNotificationsPlugin.initialize(
         settings: initializationSettings,
+        onDidReceiveNotificationResponse: (NotificationResponse response) {
+          debugPrint('[NOTIF] Notification response received: ${response.payload}');
+          openNotificationsPanel();
+        },
       );
+
+      final launchDetails = await _flutterLocalNotificationsPlugin.getNotificationAppLaunchDetails();
+      if (launchDetails?.didNotificationLaunchApp ?? false) {
+        debugPrint('[NOTIF] App launched from notification: ${launchDetails?.notificationResponse?.payload}');
+        _pendingOpenNotifications = true;
+      }
+
       _initialized = true;
     } catch (e) {
       debugPrint('[ERROR] NotificationsService init failed: $e');

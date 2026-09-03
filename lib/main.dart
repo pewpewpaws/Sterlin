@@ -13,6 +13,7 @@ import 'services/background_service.dart';
 import 'services/safeword_service.dart';
 import 'services/theme_service.dart';
 import 'services/desktop_tray_service.dart';
+import 'services/notifications_service.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -57,6 +58,7 @@ void main() async {
   await AppLoggerService().init();
   await ThemeService.init();
   await SafeWordService.load();
+  await NotificationsService().init();
   if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
     try {
       Workmanager().initialize(
@@ -90,6 +92,7 @@ class AIPApp extends StatelessWidget {
           builder: (context, _) {
             final ts = ThemeService();
             return MaterialApp(
+              navigatorKey: NotificationsService.navigatorKey,
               title: 'Sterlin',
               debugShowCheckedModeBanner: false,
               themeMode: ts.themeMode,

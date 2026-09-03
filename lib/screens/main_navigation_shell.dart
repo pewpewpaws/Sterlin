@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/floating_pill_nav_bar.dart';
 import '../widgets/navigation_tutorial.dart';
+import '../services/notifications_service.dart';
 import 'attendance_screen.dart';
 import 'dashboard_screen.dart';
 import 'settings_screen.dart';
@@ -75,7 +76,10 @@ class MainNavigationShellState extends State<MainNavigationShell>
     super.initState();
     NavigationTutorial.reportTab(_currentIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) NavigationTutorial.maybeShow(context);
+      if (mounted) {
+        NavigationTutorial.maybeShow(context);
+        NotificationsService.checkAndOpenPendingNotification(context);
+      }
     });
   }
 
