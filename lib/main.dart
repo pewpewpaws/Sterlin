@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:window_manager/window_manager.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_navigation_shell.dart';
 import 'services/etlab_api_service.dart';
@@ -10,6 +12,7 @@ import 'services/app_logger_service.dart';
 import 'services/background_service.dart';
 import 'services/safeword_service.dart';
 import 'services/theme_service.dart';
+import 'services/desktop_tray_service.dart';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -60,6 +63,14 @@ void main() async {
         callbackDispatcher,
       );
     } catch (_) {}
+  }
+  if (!kIsWeb && (Platform.isLinux || Platform.isWindows)) {
+    try {
+      await windowManager.ensureInitialized();
+      await DesktopTrayService().init();
+    } catch (e) {
+      debugPrint('[ERROR] Desktop tray init failed: $e');
+    }
   }
   runApp(const AIPApp());
 }
