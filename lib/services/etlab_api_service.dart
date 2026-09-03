@@ -442,7 +442,11 @@ class EtlabApiService {
       '[API] fetchAttendanceByDayPeriod(month: $month, year: $year, semester: "${semester ?? ""}")',
     );
     final url = Uri.parse('$baseUrl/app/attendancebydayperiod');
-    final sem = semester ?? _profileData?['sem_id']?.toString() ?? '5';
+    final sem = (semester != null && semester.isNotEmpty)
+        ? semester
+        : (_profileData?['sem_id']?.toString() ??
+            _profileData?['student']?['sem_id']?.toString() ??
+            '');
     final payload = {
       'month': month.toString(),
       'semester': sem,
@@ -509,6 +513,53 @@ class EtlabApiService {
     } catch (_) {}
   }
 
+  /// Returns cached calendar day data for a given date (e.g. DateTime.now()).
+  Map<String, dynamic>? getCachedDayData(DateTime date) {
+    final y = date.year;
+    final m = date.month;
+    final dStr = '${y.toString().padLeft(4, '0')}-${m.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+    for (final monthData in _monthMemoryCache.values) {
+      dynamic attends = monthData['attends'];
+      if (attends == null && monthData['data'] is Map) {
+        attends = monthData['data']['attends'];
+      }
+      if (attends is List) {
+        for (final item in attends) {
+          if (item is Map<String, dynamic> && item['date']?.toString() == dStr) {
+            return item;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Checks whether today (or a specific date) is marked as a holiday in the calendar data.
+  ({bool isHoliday, String? reason}) getHolidayStatus({DateTime? date}) {
+    final target = date ?? DateTime.now();
+    final dayData = getCachedDayData(target);
+    final isWeekend = target.weekday == DateTime.saturday || target.weekday == DateTime.sunday;
+
+    if (dayData == null) {
+      return (isHoliday: isWeekend, reason: isWeekend ? 'Weekend' : null);
+    }
+
+    final isHolidayFlag = dayData['holiday'] == true;
+    final reason = dayData['holiday_reason']?.toString().trim();
+    final periods = (dayData['periods'] as List?) ?? const [];
+    final valid = periods.whereType<Map>().where((p) {
+      final att = p['attendance']?.toString().trim().toLowerCase() ?? '';
+      return att.isNotEmpty && att != 'na' && att != 'n/a';
+    }).toList();
+
+    final isHoliday = isHolidayFlag || (valid.isEmpty && isWeekend);
+    return (
+      isHoliday: isHoliday,
+      reason: reason != null && reason.isNotEmpty ? reason : (isWeekend ? 'Weekend' : null),
+    );
+  }
+
   Future<Map<String, dynamic>?> getCachedMonthAttendance(
     int month,
     int year, {
@@ -555,7 +606,9 @@ class EtlabApiService {
   }) async {
     final semKey = (semester != null && semester.isNotEmpty)
         ? semester
-        : (_profileData?['sem_id']?.toString() ?? '68');
+        : (_profileData?['sem_id']?.toString() ??
+            _profileData?['student']?['sem_id']?.toString() ??
+            '');
     debugPrint(
       '[CACHE] cacheMonthAttendance(month: $month, year: $year, semester: "$semKey")',
     );
@@ -643,7 +696,9 @@ class EtlabApiService {
         debugPrint('[API] fetchProfile notice: $e');
       }
 
-      final semId = _profileData?['sem_id']?.toString() ?? '68';
+      final semId = _profileData?['sem_id']?.toString() ??
+          _profileData?['student']?['sem_id']?.toString() ??
+          '';
 
       final List<Future> fetchTasks = [
         fetchAttendanceBySubject(semester: semId).catchError((e) {

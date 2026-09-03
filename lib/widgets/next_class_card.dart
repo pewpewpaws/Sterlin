@@ -4,10 +4,14 @@ import '../screens/main_navigation_shell.dart';
 
 class NextClassCardWidget extends StatelessWidget {
   final List<ClassSession> sessions;
+  final bool isHoliday;
+  final String? holidayReason;
 
   const NextClassCardWidget({
     super.key,
     required this.sessions,
+    this.isHoliday = false,
+    this.holidayReason,
   });
 
   @override
@@ -17,56 +21,95 @@ class NextClassCardWidget extends StatelessWidget {
     final nowWeekday = DateTime.now().weekday;
     final bool isWeekend = nowWeekday == DateTime.saturday || nowWeekday == DateTime.sunday;
 
-    if (isWeekend || sessions.isEmpty) {
+    if (isHoliday || isWeekend || sessions.isEmpty) {
+      final String headerText;
+      final String titleText;
+      final String? subtitleText;
+      final IconData iconData;
+
+      if (isHoliday) {
+        headerText = 'COLLEGE HOLIDAY';
+        final reason = (holidayReason != null && holidayReason!.trim().isNotEmpty)
+            ? holidayReason!.trim()
+            : null;
+        titleText = reason != null ? '$reason 🎉' : 'Today is a holiday! 🌴';
+        subtitleText = 'Marked as a holiday on the academic calendar';
+        iconData = Icons.celebration_outlined;
+      } else if (isWeekend) {
+        headerText = 'WEEKEND';
+        titleText = 'Enjoy your weekend! 🌴';
+        subtitleText = null;
+        iconData = Icons.weekend_outlined;
+      } else {
+        headerText = 'NO CLASSES TODAY';
+        titleText = 'No classes scheduled for today. 🎉';
+        subtitleText = null;
+        iconData = Icons.event_available_outlined;
+      }
+
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Card(
-          color: theme.colorScheme.primaryContainer,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(100), width: 1),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    shape: BoxShape.circle,
+        child: GestureDetector(
+          onTap: isHoliday
+              ? () => MainNavigationShell.navigateToAttendance(context, initialTabIndex: 1)
+              : null,
+          child: Card(
+            color: theme.colorScheme.primaryContainer,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(100), width: 1),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      iconData,
+                      size: 24,
+                      color: theme.colorScheme.onPrimary,
+                    ),
                   ),
-                  child: Icon(
-                    isWeekend ? Icons.weekend_outlined : Icons.event_available_outlined,
-                    size: 24,
-                    color: theme.colorScheme.onPrimary,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        isWeekend ? 'WEEKEND / HOLIDAY' : 'NO CLASSES TODAY',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          headerText,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        isWeekend ? 'Enjoy your weekend! 🌴' : 'No classes scheduled for today. 🎉',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(height: 2),
+                        Text(
+                          titleText,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
+                        if (subtitleText != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitleText,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

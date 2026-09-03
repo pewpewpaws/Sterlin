@@ -105,7 +105,9 @@ class _MonthCalendarState extends State<MonthCalendar> {
   Future<void> _loadMonth(DateTime month) async {
     final key = '${month.year}_${month.month}';
     final api = EtlabApiService();
-    final semId = api.profileData?['sem_id']?.toString() ?? '68';
+    final semId = api.profileData?['sem_id']?.toString() ??
+        api.profileData?['student']?['sem_id']?.toString() ??
+        '';
 
     if (!_months.containsKey(key)) {
       final mem = api.getMemoryCachedMonth(month.month, month.year, semester: semId);

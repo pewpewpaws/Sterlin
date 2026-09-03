@@ -322,7 +322,12 @@ class DashboardScreenState extends State<DashboardScreen> {
   ) {
     switch (type) {
       case DashboardWidgetType.nextClass:
-        return NextClassCardWidget(sessions: _timetable);
+        final holidayStatus = EtlabApiService().getHolidayStatus();
+        return NextClassCardWidget(
+          sessions: _timetable,
+          isHoliday: holidayStatus.isHoliday,
+          holidayReason: holidayStatus.reason,
+        );
       case DashboardWidgetType.timetable:
         return TodaysTimetableWidget(
           profileData: profile,
