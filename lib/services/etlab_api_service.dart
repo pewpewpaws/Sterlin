@@ -90,8 +90,21 @@ class EtlabApiService {
     debugPrint('[SESSION] initSession()');
     try {
       final prefs = await SharedPreferences.getInstance();
-      _subdomain = prefs.getString(_keySubdomain) ?? 'sctce';
+      final savedSub = prefs.getString(_keySubdomain);
+      if (savedSub == null ||
+          savedSub.contains('://') ||
+          savedSub.contains('/') ||
+          savedSub.trim().isEmpty) {
+        _subdomain = 'sctce';
+        await prefs.setString(_keySubdomain, 'sctce');
+      } else {
+        _subdomain = savedSub.trim();
+      }
       _accessToken = await _secureStorage.read(key: _keyAccessToken);
+      if (_accessToken != null && _accessToken!.startsWith('mock_')) {
+        _accessToken = null;
+        await _secureStorage.delete(key: _keyAccessToken);
+      }
 
       // Cleanup legacy shared prefs token if it exists
       if (prefs.containsKey(_keyAccessToken)) {
