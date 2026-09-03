@@ -1,4 +1,4 @@
-﻿name: Release Build
+name: Release Build
 
 on:
   push:
@@ -31,7 +31,7 @@ jobs:
       - name: Package Windows release
         shell: pwsh
         run: |
-          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath build/sterlin-windows-x64.zip -Force
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath build/Sterlin-windows-x64.zip -Force
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -41,7 +41,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            build/sterlin-windows-x64.zip
-            build/windows/x64/runner/Release/sterlin.exe
+            build/Sterlin-windows-x64.zip
+            build/windows/x64/runner/Release/Sterlin.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
