@@ -203,9 +203,10 @@ class DashboardScreenState extends State<DashboardScreen> {
     try {
       final api = EtlabApiService();
       await api.fetchAllData();
-      if (!mounted) return;
-      _loadDataFromApi();
     } catch (_) {}
+
+    if (!mounted) return;
+    _loadDataFromApi();
 
     if (!mounted) return;
     setState(() {
@@ -357,8 +358,9 @@ class DashboardScreenState extends State<DashboardScreen> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final firstName =
-        (profile['name']?.toString() ?? 'Student').split(' ').first;
+    final firstName = (profile['name']?.toString() ?? 'Student')
+        .split(' ')
+        .first;
 
     Widget bodyContent = SafeArea(
       bottom: false,
@@ -376,14 +378,11 @@ class DashboardScreenState extends State<DashboardScreen> {
                 tooltip: 'Refresh Data',
                 onTap: _refreshData,
               ),
-              NotificationBellAction(
-                actionKey: NavigationTutorial.bellKey,
-              ),
+              NotificationBellAction(actionKey: NavigationTutorial.bellKey),
               const ProfileAvatarAction(),
             ],
           ),
-          if (_isLoading)
-            const Center(child: LinearProgressIndicator()),
+          if (_isLoading) const Center(child: LinearProgressIndicator()),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _refreshData,

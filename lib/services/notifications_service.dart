@@ -307,41 +307,56 @@ class NotificationsService {
     }
   }
 
+  bool _isDiffing = false;
+  final Set<String> _inMemoryNotifiedKeys = {};
+
   /// Called after a refresh to trigger push notifications for newly found absences.
   Future<void> runDiffAndNotify() async {
+    if (_isDiffing) {
+      debugPrint('[NOTIF] runDiffAndNotify already in progress, skipping concurrent call');
+      return;
+    }
+    _isDiffing = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? notifiedJson = prefs.getString(_keyNotifiedData);
       final Map<String, dynamic> notified = notifiedJson != null ? jsonDecode(notifiedJson) : {};
 
+      _inMemoryNotifiedKeys.addAll(notified.keys);
+
       final newAbsences = await getNewAbsences();
       bool hasNewNotifs = false;
 
       for (var absence in newAbsences) {
-        final key = absence['key'];
-        if (notified.containsKey(key)) continue;
+        final key = absence['key']?.toString() ?? '';
+        if (key.isEmpty) continue;
+        if (_inMemoryNotifiedKeys.contains(key) || notified.containsKey(key)) continue;
+
+        // Synchronously claim the key before awaiting notification delivery
+        _inMemoryNotifiedKeys.add(key);
+        notified[key] = true;
+        hasNewNotifs = true;
 
         final date = absence['date'];
         final subject = absence['subject'];
         final hour = absence['hour'];
-        
+
         // Clean, structured phone notification with subject code & faculty
         await showAbsenceNotification(
           subject: subject.toString(),
           hour: hour.toString(),
           date: date.toString(),
         );
-
-        notified[key] = true;
-        hasNewNotifs = true;
       }
 
       if (hasNewNotifs) {
         await prefs.setString(_keyNotifiedData, jsonEncode(notified));
       }
-      await updateUnreadCount();
+      unreadCountNotifier.value = newAbsences.length;
     } catch (e) {
       debugPrint('[NOTIF] runDiffAndNotify error: $e');
+    } finally {
+      _isDiffing = false;
     }
   }
 

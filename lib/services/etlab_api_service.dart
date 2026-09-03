@@ -36,6 +36,7 @@ class EtlabApiService {
   List<dynamic>? _semesterListData;
   double _targetAttendancePct = 0.75;
   final Map<String, Map<String, dynamic>> _monthMemoryCache = {};
+  Future<void>? _activeFetchAllData;
 
   bool get isLoggedIn => _accessToken != null && _accessToken!.isNotEmpty;
   String get subdomain => _subdomain;
@@ -201,14 +202,18 @@ class EtlabApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedUsername = prefs.getString(_keyUsername);
-      if (savedUsername != null && savedUsername.isNotEmpty && savedUsername != username.trim()) {
+      if (savedUsername != null &&
+          savedUsername.isNotEmpty &&
+          savedUsername != username.trim()) {
         debugPrint('[SESSION] Different user logging in, purging old data...');
         await _purgeAllUserData();
       }
     } catch (_) {}
 
     _subdomain = subdomain.trim().isEmpty ? 'sctce' : subdomain.trim();
-    debugPrint('[API] login(subdomain: "$_subdomain", username: "${username.trim()}", hostelId: "${hostelId.trim()}")');
+    debugPrint(
+      '[API] login(subdomain: "$_subdomain", username: "${username.trim()}", hostelId: "${hostelId.trim()}")',
+    );
     final url = Uri.parse('$baseUrl/app/login');
 
     final payload = {
@@ -219,14 +224,16 @@ class EtlabApiService {
 
     try {
       // 1. Try JSON POST request
-      var response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 15));
+      var response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
 
       Map<String, dynamic>? data;
       try {
@@ -239,14 +246,16 @@ class EtlabApiService {
       if (response.statusCode != 200 ||
           data == null ||
           data['login'] == false) {
-        final formResponse = await http.post(
-          url,
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-          },
-          body: payload,
-        ).timeout(const Duration(seconds: 15));
+        final formResponse = await http
+            .post(
+              url,
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Accept': 'application/json',
+              },
+              body: payload,
+            )
+            .timeout(const Duration(seconds: 15));
 
         if (formResponse.statusCode == 200 && formResponse.body.isNotEmpty) {
           try {
@@ -276,7 +285,9 @@ class EtlabApiService {
         }
 
         _profileData = data;
-        debugPrint('[API] login(username: "${username.trim()}", status: "success")');
+        debugPrint(
+          '[API] login(username: "${username.trim()}", status: "success")',
+        );
 
         // Save session token & profile locally
         await _saveSessionData(username: username);
@@ -286,14 +297,20 @@ class EtlabApiService {
         await NotificationsService().seedAllHistoricalAbsences();
         return true;
       } else {
-        debugPrint('[API] login(username: "${username.trim()}", status: "failed")');
+        debugPrint(
+          '[API] login(username: "${username.trim()}", status: "failed")',
+        );
         return false;
       }
     } on TimeoutException {
-      debugPrint('[ERROR] login(username: "${username.trim()}", status: "timeout")');
+      debugPrint(
+        '[ERROR] login(username: "${username.trim()}", status: "timeout")',
+      );
       throw Exception('Connection timed out. Please try again.');
     } catch (e) {
-      debugPrint('[ERROR] login(username: "${username.trim()}", status: "error", error: "$e")');
+      debugPrint(
+        '[ERROR] login(username: "${username.trim()}", status: "error", error: "$e")',
+      );
       throw Exception('Login failed. Check connection.');
     }
   }
@@ -302,7 +319,9 @@ class EtlabApiService {
     debugPrint('[API] fetchProfile()');
     final url = Uri.parse('$baseUrl/app/profile');
     try {
-      final response = await http.post(url, headers: _authHeaders).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(url, headers: _authHeaders)
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is Map<String, dynamic>) {
@@ -317,18 +336,18 @@ class EtlabApiService {
     return _profileData;
   }
 
-  Future<Map<String, dynamic>?> fetchAttendanceBySubject({String? semester}) async {
+  Future<Map<String, dynamic>?> fetchAttendanceBySubject({
+    String? semester,
+  }) async {
     debugPrint('[API] fetchAttendanceBySubject(semester: "${semester ?? ""}")');
     final url = Uri.parse('$baseUrl/app/attendancebysubject');
     try {
       final bodyMap = (semester != null && semester.isNotEmpty)
           ? {'sem_id': semester, 'semester': semester}
           : <String, String>{};
-      final response = await http.post(
-        url,
-        headers: _authHeaders,
-        body: jsonEncode(bodyMap),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(url, headers: _authHeaders, body: jsonEncode(bodyMap))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is Map<String, dynamic>) {
@@ -349,7 +368,9 @@ class EtlabApiService {
     debugPrint('[API] fetchTeachers()');
     final url = Uri.parse('$baseUrl/app/teachers');
     try {
-      final response = await http.post(url, headers: _authHeaders).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(url, headers: _authHeaders)
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is Map<String, dynamic>) {
@@ -369,7 +390,9 @@ class EtlabApiService {
     debugPrint('[API] fetchSemesterList()');
     final url = Uri.parse('$baseUrl/app/semesterlist');
     try {
-      final response = await http.post(url, headers: _authHeaders).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(url, headers: _authHeaders)
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data is List<dynamic>) {
@@ -377,7 +400,11 @@ class EtlabApiService {
           await _saveSessionData();
           return data;
         } else if (data is Map<String, dynamic>) {
-          final semList = data['semesters'] ?? data['data'] ?? data['semesterlist'] ?? data['semesters_list'];
+          final semList =
+              data['semesters'] ??
+              data['data'] ??
+              data['semesterlist'] ??
+              data['semesters_list'];
           if (semList is List<dynamic>) {
             _semesterListData = semList;
             await _saveSessionData();
@@ -396,7 +423,9 @@ class EtlabApiService {
     required int year,
     String? semester,
   }) async {
-    debugPrint('[API] fetchAttendanceByDayPeriod(month: $month, year: $year, semester: "${semester ?? ""}")');
+    debugPrint(
+      '[API] fetchAttendanceByDayPeriod(month: $month, year: $year, semester: "${semester ?? ""}")',
+    );
     final url = Uri.parse('$baseUrl/app/attendancebydayperiod');
     final sem = semester ?? _profileData?['sem_id']?.toString() ?? '5';
     final payload = {
@@ -405,11 +434,9 @@ class EtlabApiService {
       'year': year.toString(),
     };
     try {
-      final response = await http.post(
-        url,
-        headers: _authHeaders,
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 15));
+      final response = await http
+          .post(url, headers: _authHeaders, body: jsonEncode(payload))
+          .timeout(const Duration(seconds: 15));
       if (response.statusCode == 200 && response.body.isNotEmpty) {
         final data = jsonDecode(response.body);
         if (data is Map<String, dynamic>) {
@@ -432,7 +459,11 @@ class EtlabApiService {
     return 'etlab_month_${year}_${month}_$semKey';
   }
 
-  Map<String, dynamic>? getMemoryCachedMonth(int month, int year, {String? semester}) {
+  Map<String, dynamic>? getMemoryCachedMonth(
+    int month,
+    int year, {
+    String? semester,
+  }) {
     final semKey = (semester != null && semester.isNotEmpty)
         ? semester
         : (_profileData?['sem_id']?.toString() ?? 'default');
@@ -463,8 +494,14 @@ class EtlabApiService {
     } catch (_) {}
   }
 
-  Future<Map<String, dynamic>?> getCachedMonthAttendance(int month, int year, {String? semester}) async {
-    debugPrint('[CACHE] getCachedMonthAttendance(month: $month, year: $year, semester: "${semester ?? ""}")');
+  Future<Map<String, dynamic>?> getCachedMonthAttendance(
+    int month,
+    int year, {
+    String? semester,
+  }) async {
+    debugPrint(
+      '[CACHE] getCachedMonthAttendance(month: $month, year: $year, semester: "${semester ?? ""}")',
+    );
     final mem = getMemoryCachedMonth(month, year, semester: semester);
     if (mem != null) return mem;
 
@@ -495,28 +532,44 @@ class EtlabApiService {
     return null;
   }
 
-  Future<void> cacheMonthAttendance(int month, int year, Map<String, dynamic> data, {String? semester}) async {
+  Future<void> cacheMonthAttendance(
+    int month,
+    int year,
+    Map<String, dynamic> data, {
+    String? semester,
+  }) async {
     final semKey = (semester != null && semester.isNotEmpty)
         ? semester
-        : (_profileData?['sem_id']?.toString() ?? 'default');
-    debugPrint('[CACHE] cacheMonthAttendance(month: $month, year: $year, semester: "$semKey")');
+        : (_profileData?['sem_id']?.toString() ?? '68');
+    debugPrint(
+      '[CACHE] cacheMonthAttendance(month: $month, year: $year, semester: "$semKey")',
+    );
     try {
+      final attends = data['attends'];
       final prefs = await SharedPreferences.getInstance();
       final monthKey = '${year}_${month}_$semKey';
       final storageKey = 'etlab_month_$monthKey';
 
+      // SAFEGUARD: Do not overwrite valid cached month data with empty data
+      if (attends is List && attends.isEmpty) {
+        final existing = prefs.getString(storageKey);
+        if (existing != null && existing.isNotEmpty) {
+          debugPrint('[CACHE] Preserving existing cached month data for $monthKey (new data was empty)');
+          return;
+        }
+      }
+
       _monthMemoryCache[monthKey] = data;
       await prefs.setString(storageKey, jsonEncode(data));
 
-      final List<String> indexList = prefs.getStringList(_keyCalendarIndex) ?? [];
+      final List<String> indexList =
+          prefs.getStringList(_keyCalendarIndex) ?? [];
       final bool isFirstTimeForMonth = !indexList.contains(monthKey);
 
       if (isFirstTimeForMonth) {
         indexList.add(monthKey);
         await prefs.setStringList(_keyCalendarIndex, indexList);
         await NotificationsService().seedMonthBaseline(data);
-      } else {
-        await NotificationsService().runDiffAndNotify();
       }
     } catch (_) {}
   }
@@ -554,71 +607,109 @@ class EtlabApiService {
     return allData;
   }
 
-  Future<void> fetchAllData() async {
+  Future<void> fetchAllData() {
+    if (_activeFetchAllData != null) {
+      debugPrint(
+        '[API] fetchAllData() already in progress, deduplicating request',
+      );
+      return _activeFetchAllData!;
+    }
+    _activeFetchAllData = _performFetchAllData();
+    return _activeFetchAllData!;
+  }
+
+  Future<void> _performFetchAllData() async {
     debugPrint('[API] fetchAllData()');
-
-    final now = DateTime.now();
-    int currentMonth = now.month;
-    int currentYear = now.year;
-    
-    final List<Future> fetchTasks = [
-      fetchProfile(),
-      fetchAttendanceBySubject(),
-      if (!teachersCacheFresh) fetchTeachers(),
-      fetchSemesterList(),
-      fetchAttendanceByDayPeriod(month: currentMonth, year: currentYear),
-    ];
-
-    int prevMonth1 = currentMonth - 1;
-    int prevYear1 = currentYear;
-    if (prevMonth1 < 1) {
-      prevMonth1 += 12;
-      prevYear1 -= 1;
-    }
-
-    int prevMonth2 = currentMonth - 2;
-    int prevYear2 = currentYear;
-    if (prevMonth2 < 1) {
-      prevMonth2 += 12;
-      prevYear2 -= 1;
-    }
-
-    fetchTasks.add(fetchAttendanceByDayPeriod(month: prevMonth1, year: prevYear1));
-    fetchTasks.add(fetchAttendanceByDayPeriod(month: prevMonth2, year: prevYear2));
-
-    await Future.wait(fetchTasks);
-
     try {
-      final timetable = DashboardDataMapper.parseTimetableFromProfile(
-        _profileData,
-        subjectsData: _attendanceData,
-        teachersData: _teachersData,
-      );
-      final attendance = DashboardDataMapper.parseAttendanceFromSubjects(
-        _attendanceData ?? _profileData,
-      );
-      await HomeWidgetService.updateHomeScreenWidget(
-        timetable: timetable,
-        attendance: attendance,
-        profileData: _profileData,
-        attendanceData: _attendanceData,
-        teachersData: _teachersData,
-      );
-    } catch (_) {}
-
-    // Reschedule next background refresh — 1h after this manual fetch.
-    // Silently no-ops if the user is logged out by the time this runs.
-    if (isLoggedIn) {
+      // 1. Fetch Profile first so we have the student details and accurate sem_id
       try {
-        await BackgroundService.scheduleNextRefresh();
+        await fetchProfile();
+      } catch (e) {
+        debugPrint('[API] fetchProfile notice: $e');
+      }
+
+      final semId = _profileData?['sem_id']?.toString() ?? '68';
+
+      final List<Future> fetchTasks = [
+        fetchAttendanceBySubject(semester: semId).catchError((e) {
+          debugPrint('[API] fetchAttendanceBySubject notice: $e');
+          return null;
+        }),
+        if (!teachersCacheFresh)
+          fetchTeachers().catchError((e) {
+            debugPrint('[API] fetchTeachers notice: $e');
+            return null;
+          }),
+        fetchSemesterList().catchError((e) {
+          debugPrint('[API] fetchSemesterList notice: $e');
+          return null;
+        }),
+      ];
+
+      final now = DateTime.now();
+      int currentMonth = now.month;
+      int currentYear = now.year;
+
+      for (int offset = 0; offset < 4; offset++) {
+        int targetMonth = currentMonth - offset;
+        int targetYear = currentYear;
+        while (targetMonth < 1) {
+          targetMonth += 12;
+          targetYear -= 1;
+        }
+        fetchTasks.add(
+          fetchAttendanceByDayPeriod(
+            month: targetMonth,
+            year: targetYear,
+            semester: semId,
+          ).catchError((e) {
+            debugPrint('[API] fetchAttendanceByDayPeriod notice: $e');
+            return null;
+          }),
+        );
+      }
+
+      await Future.wait(fetchTasks);
+
+      // Run diff and notify exactly once after the batch of months is cached
+      try {
+        await NotificationsService().runDiffAndNotify();
       } catch (_) {}
+
+      try {
+        final timetable = DashboardDataMapper.parseTimetableFromProfile(
+          _profileData,
+          subjectsData: _attendanceData,
+          teachersData: _teachersData,
+        );
+        final attendance = DashboardDataMapper.parseAttendanceFromSubjects(
+          _attendanceData ?? _profileData,
+        );
+        await HomeWidgetService.updateHomeScreenWidget(
+          timetable: timetable,
+          attendance: attendance,
+          profileData: _profileData,
+          attendanceData: _attendanceData,
+          teachersData: _teachersData,
+        );
+      } catch (_) {}
+
+      // Reschedule next background refresh — 1h after this manual fetch.
+      // Silently no-ops if the user is logged out by the time this runs.
+      if (isLoggedIn) {
+        try {
+          await BackgroundService.scheduleNextRefresh();
+        } catch (_) {}
+      }
+    } finally {
+      _activeFetchAllData = null;
     }
   }
 
   Future<void> _purgeAllUserData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       // Remove known static keys
       await prefs.remove(_keySubdomain);
       await prefs.remove(_keyUsername);
@@ -635,7 +726,7 @@ class EtlabApiService {
       // Remove dynamic caches (months, semesters, etc.)
       final allKeys = prefs.getKeys().toList();
       for (final key in allKeys) {
-        if (key.startsWith('etlab_month_') || 
+        if (key.startsWith('etlab_month_') ||
             key.startsWith('etlab_sem_attendance_')) {
           await prefs.remove(key);
         }
@@ -653,9 +744,9 @@ class EtlabApiService {
     _attendanceData = null;
     _teachersData = null;
     _teachersFetchedAt = null;
-    _teachersFetchedAt = null;
     _semesterListData = null;
     _monthMemoryCache.clear();
+    _activeFetchAllData = null;
 
     await _purgeAllUserData();
     await BackgroundService.cancelAll();
