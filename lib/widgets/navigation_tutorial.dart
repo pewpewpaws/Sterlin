@@ -143,7 +143,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       'Drag sideways across the dock and glide back to Home.',
       null,
       target: _StepTarget.dock,
-      showOutline: false,
+      showOutline: true,
       spotlight: true,
       action: _StepAction.glideToHome,
     ),
@@ -392,14 +392,16 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
           children: [
             // RepaintBoundary isolates canvas scrim rendering to GPU
             Positioned.fill(
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: _SpotlightPainter(
-                    animation: _moveCurved,
-                    rectTween: _rectTween,
-                    borderTween: _borderTween,
-                    scrimTween: _scrimTween,
-                    holeTween: _holeTween,
+              child: IgnorePointer(
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _SpotlightPainter(
+                      animation: _moveCurved,
+                      rectTween: _rectTween,
+                      borderTween: _borderTween,
+                      scrimTween: _scrimTween,
+                      holeTween: _holeTween,
+                    ),
                   ),
                 ),
               ),
