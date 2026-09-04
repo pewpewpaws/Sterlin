@@ -65,8 +65,10 @@ class _AnimatedNavIconState extends State<AnimatedNavIcon> with SingleTickerProv
         return _buildSpinningGear();
       case 'attendance':
         return _buildAnimatedBars();
-      case 'faculty':
-        return _buildAnimatedFaculty();
+      case 'results':
+        return _buildAnimatedResults();
+      case 'syllabus':
+        return _buildAnimatedSyllabus();
       case 'home':
       default:
         return _buildAnimatedHome();
@@ -129,19 +131,41 @@ class _AnimatedNavIconState extends State<AnimatedNavIcon> with SingleTickerProv
     );
   }
 
-  // 👨‍🏫 Faculty: People Wave / Pop Animation
-  Widget _buildAnimatedFaculty() {
+  // 📈 Results: Assessment Pop / Lift Animation
+  Widget _buildAnimatedResults() {
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
         final scale = 1.0 + (0.15 * math.sin(_controller.value * math.pi));
-        final tilt = math.sin(_controller.value * math.pi * 2) * 0.1;
-        return Transform.scale(
-          scale: scale,
-          child: Transform.rotate(
-            angle: tilt,
+        final lift = math.sin(_controller.value * math.pi) * -3.0;
+        return Transform.translate(
+          offset: Offset(0, lift),
+          child: Transform.scale(
+            scale: scale,
             child: Icon(
-              widget.isSelected ? Icons.people_alt_rounded : Icons.people_outline_rounded,
+              widget.isSelected ? Icons.assessment_rounded : Icons.assessment_outlined,
+              size: widget.size,
+              color: widget.color,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 📖 Syllabus: Book Flip / Scale Animation
+  Widget _buildAnimatedSyllabus() {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final scale = 1.0 + (0.14 * math.sin(_controller.value * math.pi));
+        final tilt = math.sin(_controller.value * math.pi) * 0.08;
+        return Transform.rotate(
+          angle: tilt,
+          child: Transform.scale(
+            scale: scale,
+            child: Icon(
+              widget.isSelected ? Icons.menu_book_rounded : Icons.menu_book_outlined,
               size: widget.size,
               color: widget.color,
             ),

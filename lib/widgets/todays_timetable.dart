@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../screens/main_navigation_shell.dart';
+import '../services/etlab_api_service.dart';
 
 class TodaysTimetableWidget extends StatefulWidget {
   final Map<String, dynamic>? profileData;
   final Map<String, dynamic>? subjectsData;
   final Map<String, dynamic>? teachersData;
   final List<ClassSession>? initialSessions;
+  final bool? isHoliday;
 
   const TodaysTimetableWidget({
     super.key,
@@ -14,6 +16,7 @@ class TodaysTimetableWidget extends StatefulWidget {
     this.subjectsData,
     this.teachersData,
     this.initialSessions,
+    this.isHoliday,
   });
 
   @override
@@ -24,6 +27,11 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
   late List<String> _dayNames;
   late int _selectedDayIndex;
   final ScrollController _scrollController = ScrollController();
+
+  bool get _isTodayHoliday {
+    if (widget.isHoliday != null) return widget.isHoliday!;
+    return EtlabApiService().getHolidayStatus().isHoliday;
+  }
 
   @override
   void initState() {
@@ -66,7 +74,7 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
   }
 
   int _getTargetScrollIndex(List<ClassSession> sessions) {
-    if (sessions.isEmpty) return 0;
+    if (sessions.isEmpty || _isTodayHoliday) return 0;
 
     // 1. Current active class
     final currentIndex = sessions.indexWhere((s) => s.isCurrent);
@@ -84,12 +92,13 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
 
     final sessions = _getSessionsForDay();
     final isToday = _todayDayIndex != null && _selectedDayIndex == _todayDayIndex;
-    final int targetIndex = isToday ? _getTargetScrollIndex(sessions) : 0;
+    final bool showCurrentHighlight = isToday && !_isTodayHoliday;
+    final int targetIndex = showCurrentHighlight ? _getTargetScrollIndex(sessions) : 0;
 
     double targetOffset = 0.0;
     for (int i = 0; i < targetIndex && i < sessions.length; i++) {
       final s = sessions[i];
-      final cardW = (s.isCurrent && isToday) ? 295.0 : 235.0;
+      final cardW = (s.isCurrent && showCurrentHighlight) ? 295.0 : 235.0;
       targetOffset += cardW + 8.0; // card width + 8 horizontal margin (4 on each side)
     }
 
@@ -98,7 +107,7 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
 
     if ((_scrollController.offset - clampedOffset).abs() < 1.0) return;
 
-    if (animate) {
+    if (animate && showCurrentHighlight) {
       _scrollController.animateTo(
         clampedOffset,
         duration: const Duration(milliseconds: 350),
@@ -266,8 +275,12 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
               itemCount: sessions.length,
               itemBuilder: (context, index) {
                 final session = sessions[index];
+                final bool isHoliday = isTodaySelected && _isTodayHoliday;
+                final bool enableNowHighlight = isTodaySelected && !_isTodayHoliday;
                 return _ClassCard(
                   session: session,
+                  enableNowHighlight: enableNowHighlight,
+                  isHoliday: isHoliday,
                 );
               },
             ),
@@ -279,16 +292,20 @@ class _TodaysTimetableWidgetState extends State<TodaysTimetableWidget> {
 
 class _ClassCard extends StatelessWidget {
   final ClassSession session;
+  final bool enableNowHighlight;
+  final bool isHoliday;
 
   const _ClassCard({
     required this.session,
+    this.enableNowHighlight = true,
+    this.isHoliday = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isCurrent = session.isCurrent;
-    final isPast = session.isPast && !isCurrent;
+    final isCurrent = enableNowHighlight && session.isCurrent;
+    final isPast = !isHoliday && session.isPast && !isCurrent;
 
     Color cardBg = theme.colorScheme.surfaceContainerLow;
 

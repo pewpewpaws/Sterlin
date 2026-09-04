@@ -329,11 +329,13 @@ class DashboardScreenState extends State<DashboardScreen> {
           holidayReason: holidayStatus.reason,
         );
       case DashboardWidgetType.timetable:
+        final holidayStatus = EtlabApiService().getHolidayStatus();
         return TodaysTimetableWidget(
           profileData: profile,
           subjectsData: EtlabApiService().attendanceData,
           teachersData: EtlabApiService().teachersData,
           initialSessions: _timetable,
+          isHoliday: holidayStatus.isHoliday,
         );
       case DashboardWidgetType.attendance:
         return AttendanceSummaryWidget(

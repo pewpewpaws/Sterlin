@@ -66,7 +66,7 @@ class NavigationTutorial {
 
 enum _StepTarget { dock, bell, attendance }
 
-enum _StepAction { none, tapAttendance, glideToHome }
+enum _StepAction { none, tapAttendance, glideToPage }
 
 class _StepSpec {
   final String title;
@@ -139,13 +139,13 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       action: _StepAction.tapAttendance,
     ),
     _StepSpec(
-      'Slide back to Home',
-      'Drag sideways across the dock and glide back to Home.',
+      'Slide to any page',
+      'Drag sideways across the dock to glide to any page.',
       null,
       target: _StepTarget.dock,
       showOutline: true,
       spotlight: true,
-      action: _StepAction.glideToHome,
+      action: _StepAction.glideToPage,
     ),
     _StepSpec(
       'Watch for absences',
@@ -296,11 +296,9 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
       if (value != _tabBaseline) {
         _completeActionStep();
       }
-    } else if (spec.action == _StepAction.glideToHome) {
-      if (value == 1) {
+    } else if (spec.action == _StepAction.glideToPage) {
+      if (value != _tabBaseline) {
         _completeActionStep();
-      } else if (value != _tabBaseline) {
-        _tabBaseline = value;
       }
     }
   }

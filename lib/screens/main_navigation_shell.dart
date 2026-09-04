@@ -5,8 +5,9 @@ import '../widgets/navigation_tutorial.dart';
 import '../services/notifications_service.dart';
 import 'attendance_screen.dart';
 import 'dashboard_screen.dart';
+import 'results_screen.dart';
 import 'settings_screen.dart';
-import 'teachers_screen.dart';
+import 'syllabus_screen.dart';
 
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({super.key});
@@ -42,94 +43,42 @@ class MainNavigationShell extends StatefulWidget {
     }
   }
 
+  static void navigateToResults(BuildContext context) {
+    navigateToTabId(context, 'results');
+  }
+
+  static void navigateToSyllabus(BuildContext context) {
+    navigateToTabId(context, 'syllabus');
+  }
+
+  static void navigateToHome(BuildContext context) {
+    navigateToTabId(context, 'home');
+  }
+
+  static void navigateToTabId(BuildContext context, String id) {
+    final index = _allNavItems.indexWhere((item) => item.id == id);
+    if (index != -1) {
+      navigateToTab(context, index);
+    }
+  }
+
   static void navigateToTab(BuildContext context, int index) {
     final shell = of(context);
     shell?.switchToTab(index);
   }
 
-  @override
-  State<MainNavigationShell> createState() => MainNavigationShellState();
-}
-
-class MainNavigationShellState extends State<MainNavigationShell>
-    with SingleTickerProviderStateMixin {
-  // Notifications lives in the top bar of each page, not in the dock.
-  // Attendance sits right next to Home.
-  int _currentIndex = 1;
-  final Map<String, Widget> _cachedScreens = {};
-  int _attendanceKeyCounter = 0;
-
-  late final AnimationController _swapC = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 200),
-    value: 1.0,
-  );
-  late final CurvedAnimation _swapFade =
-      CurvedAnimation(parent: _swapC, curve: Curves.easeOut);
-  late final Animation<Offset> _swapSlide = Tween<Offset>(
-    begin: const Offset(0, 0.02),
-    end: Offset.zero,
-  ).animate(_swapFade);
-
-  @override
-  void initState() {
-    super.initState();
-    NavigationTutorial.reportTab(_currentIndex);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        NavigationTutorial.maybeShow(context);
-        NotificationsService.checkAndOpenPendingNotification(context);
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _swapC.dispose();
-    _swapFade.dispose();
-    super.dispose();
-  }
-
-  void switchToTab(int index) {
-    if (index == _currentIndex) return;
-    NavigationTutorial.reportTab(index);
-    setState(() {
-      _currentIndex = index;
-      if (index == 2) {
-        _attendanceKeyCounter++;
-        _cachedScreens['attendance'] = AttendanceScreen(
-          key: ValueKey('attendance_$_attendanceKeyCounter'),
-        );
-      }
-    });
-    _swapC.forward(from: 0);
-  }
-
-  void openAttendanceTab({
-    String? highlightSubject,
-    DateTime? targetDate,
-    int? initialTabIndex,
-  }) {
-    NavigationTutorial.reportTab(2);
-    setState(() {
-      _currentIndex = 2;
-      _attendanceKeyCounter++;
-      _cachedScreens['attendance'] = AttendanceScreen(
-        key: ValueKey('attendance_$_attendanceKeyCounter'),
-        highlightSubject: highlightSubject,
-        targetDate: targetDate,
-        initialTabIndex: initialTabIndex ?? (targetDate != null ? 1 : 0),
-      );
-    });
-    _swapC.forward(from: 0);
-  }
-
   static const List<NavDestinationItem> _allNavItems = [
     NavDestinationItem(
-      id: 'faculty',
-      label: 'Faculty',
-      icon: Icons.people_outline_rounded,
-      selectedIcon: Icons.people_alt_rounded,
+      id: 'results',
+      label: 'Results',
+      icon: Icons.assessment_outlined,
+      selectedIcon: Icons.assessment_rounded,
+    ),
+    NavDestinationItem(
+      id: 'syllabus',
+      label: 'Syllabus',
+      icon: Icons.menu_book_outlined,
+      selectedIcon: Icons.menu_book_rounded,
     ),
     NavDestinationItem(
       id: 'home',
@@ -151,6 +100,90 @@ class MainNavigationShellState extends State<MainNavigationShell>
     ),
   ];
 
+  @override
+  State<MainNavigationShell> createState() => MainNavigationShellState();
+}
+
+class MainNavigationShellState extends State<MainNavigationShell>
+    with SingleTickerProviderStateMixin {
+  int get _homeIndex =>
+      MainNavigationShell._allNavItems.indexWhere((item) => item.id == 'home');
+  int get _attendanceIndex =>
+      MainNavigationShell._allNavItems.indexWhere((item) => item.id == 'attendance');
+
+  int _currentIndex = 2;
+  final Map<String, Widget> _cachedScreens = {};
+  int _attendanceKeyCounter = 0;
+
+  late final AnimationController _swapC = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 200),
+    value: 1.0,
+  );
+  late final CurvedAnimation _swapFade =
+      CurvedAnimation(parent: _swapC, curve: Curves.easeOut);
+  late final Animation<Offset> _swapSlide = Tween<Offset>(
+    begin: const Offset(0, 0.02),
+    end: Offset.zero,
+  ).animate(_swapFade);
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = _homeIndex != -1 ? _homeIndex : 2;
+    NavigationTutorial.reportTab(_currentIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        NavigationTutorial.maybeShow(context);
+        NotificationsService.checkAndOpenPendingNotification(context);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _swapC.dispose();
+    _swapFade.dispose();
+    super.dispose();
+  }
+
+  void switchToTab(int index) {
+    if (index == _currentIndex) return;
+    NavigationTutorial.reportTab(index);
+    setState(() {
+      _currentIndex = index;
+      if (index >= 0 &&
+          index < MainNavigationShell._allNavItems.length &&
+          MainNavigationShell._allNavItems[index].id == 'attendance') {
+        _attendanceKeyCounter++;
+        _cachedScreens['attendance'] = AttendanceScreen(
+          key: ValueKey('attendance_$_attendanceKeyCounter'),
+        );
+      }
+    });
+    _swapC.forward(from: 0);
+  }
+
+  void openAttendanceTab({
+    String? highlightSubject,
+    DateTime? targetDate,
+    int? initialTabIndex,
+  }) {
+    final attIdx = _attendanceIndex != -1 ? _attendanceIndex : 3;
+    NavigationTutorial.reportTab(attIdx);
+    setState(() {
+      _currentIndex = attIdx;
+      _attendanceKeyCounter++;
+      _cachedScreens['attendance'] = AttendanceScreen(
+        key: ValueKey('attendance_$_attendanceKeyCounter'),
+        highlightSubject: highlightSubject,
+        targetDate: targetDate,
+        initialTabIndex: initialTabIndex ?? (targetDate != null ? 1 : 0),
+      );
+    });
+    _swapC.forward(from: 0);
+  }
+
   Widget _getScreen(String id) {
     return _cachedScreens.putIfAbsent(id, () {
       switch (id) {
@@ -158,8 +191,10 @@ class MainNavigationShellState extends State<MainNavigationShell>
           return AttendanceScreen(
             key: ValueKey('attendance_$_attendanceKeyCounter'),
           );
-        case 'faculty':
-          return const TeachersScreen();
+        case 'results':
+          return const ResultsScreen();
+        case 'syllabus':
+          return const SyllabusScreen();
         case 'home':
           return const DashboardScreen();
         case 'settings':
@@ -175,6 +210,7 @@ class MainNavigationShellState extends State<MainNavigationShell>
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final navItems = MainNavigationShell._allNavItems;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -190,7 +226,7 @@ class MainNavigationShellState extends State<MainNavigationShell>
       child: Scaffold(
         body: Stack(
           children: [
-            for (var i = 0; i < _allNavItems.length; i++)
+            for (var i = 0; i < navItems.length; i++)
               Offstage(
                 offstage: i != _currentIndex,
                 child: TickerMode(
@@ -200,10 +236,10 @@ class MainNavigationShellState extends State<MainNavigationShell>
                           opacity: _swapFade,
                           child: SlideTransition(
                             position: _swapSlide,
-                            child: _getScreen(_allNavItems[i].id),
+                            child: _getScreen(navItems[i].id),
                           ),
                         )
-                      : _getScreen(_allNavItems[i].id),
+                      : _getScreen(navItems[i].id),
                 ),
               ),
           ],
@@ -220,13 +256,15 @@ class MainNavigationShellState extends State<MainNavigationShell>
                     child: FloatingPillNavBar(
                       key: NavigationTutorial.navBarKey,
                       selectedIndex: _currentIndex,
-                      items: _allNavItems,
+                      items: navItems,
                       onDestinationSelected: (index) {
                         if (index == _currentIndex) return;
                         NavigationTutorial.reportTab(index);
                         setState(() {
                           _currentIndex = index;
-                          if (index == 2) {
+                          if (index >= 0 &&
+                              index < navItems.length &&
+                              navItems[index].id == 'attendance') {
                             _attendanceKeyCounter++;
                             _cachedScreens['attendance'] = AttendanceScreen(
                               key: ValueKey('attendance_$_attendanceKeyCounter'),
