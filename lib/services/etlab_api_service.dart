@@ -1,167 +1,73 @@
-import 'package:flutter/foundation.dart';
-import 'dart:convert';
 import 'dart:async';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart';
+
 import '../models/dashboard_data.dart';
 import 'background_service.dart';
+import 'etlab/etlab_api_client.dart';
+import 'etlab/etlab_data_store.dart';
+import 'etlab/user_session_store.dart';
 import 'home_widget_service.dart';
 import 'notifications_service.dart';
 
+/// Facade and orchestrator unifying user session storage, Etlab data caching,
+/// and HTTP communications while providing a backward-compatible interface.
 class EtlabApiService {
   static final EtlabApiService _instance = EtlabApiService._internal();
   factory EtlabApiService() => _instance;
   EtlabApiService._internal();
 
-  static const String _keySubdomain = 'etlab_subdomain';
-  static const String _keyUsername = 'etlab_username';
-  static const String _keyAccessToken = 'etlab_access_token';
-  static const String _keyProfileData = 'etlab_profile_data';
-  static const String _keyAttendanceData = 'etlab_attendance_data';
-  static const String _keyTeachersData = 'etlab_teachers_data';
-  static const String _keyTeachersFetchedAt = 'etlab_teachers_fetched_at';
-  static const String _keySemesterData = 'etlab_semester_data';
-  static const String _keyTargetAttendancePct = 'etlab_target_attendance_pct';
-  static const String _keyIsLoggedIn = 'etlab_is_logged_in';
+  final UserSessionStore _sessionStore = UserSessionStore();
+  final EtlabDataStore _dataStore = EtlabDataStore();
+  final EtlabApiClient _apiClient = EtlabApiClient();
 
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-
-  String _subdomain = 'sctce';
-  String? _accessToken;
-  Map<String, dynamic>? _profileData;
-  Map<String, dynamic>? _attendanceData;
-  Map<String, dynamic>? _teachersData;
-  DateTime? _teachersFetchedAt;
-  List<dynamic>? _semesterListData;
-  double _targetAttendancePct = 0.75;
-  final Map<String, Map<String, dynamic>> _monthMemoryCache = {};
   Future<void>? _activeFetchAllData;
 
-  bool get isLoggedIn => _accessToken != null && _accessToken!.isNotEmpty;
-  String get subdomain => _subdomain;
-  String? get accessToken => _accessToken;
-  Map<String, dynamic>? get profileData => _profileData;
-  Map<String, dynamic>? get attendanceData => _attendanceData;
-  Map<String, dynamic>? get teachersData => _teachersData;
+  // Expose underlying stores if callers want domain-specific separation
+  UserSessionStore get sessionStore => _sessionStore;
+  EtlabDataStore get dataStore => _dataStore;
+  EtlabApiClient get apiClient => _apiClient;
 
-  static const Duration teachersCacheTtl = Duration(days: 14);
+  // Backward-compatible getters
+  bool get isLoggedIn => _sessionStore.isLoggedIn;
+  String get subdomain => _sessionStore.subdomain;
+  String? get accessToken => _sessionStore.accessToken;
+  Map<String, dynamic>? get profileData => _dataStore.profileData;
+  Map<String, dynamic>? get attendanceData => _dataStore.attendanceData;
+  Map<String, dynamic>? get teachersData => _dataStore.teachersData;
 
-  bool get teachersCacheFresh =>
-      _teachersData != null &&
-      _teachersFetchedAt != null &&
-      DateTime.now().difference(_teachersFetchedAt!) < teachersCacheTtl;
-  List<dynamic>? get semesterListData => _semesterListData;
-  double get targetAttendancePct => _targetAttendancePct;
+  static const Duration teachersCacheTtl = EtlabDataStore.teachersCacheTtl;
+  bool get teachersCacheFresh => _dataStore.teachersCacheFresh;
+  List<dynamic>? get semesterListData => _dataStore.semesterListData;
+  double get targetAttendancePct => _sessionStore.targetAttendancePct;
 
-  Future<void> setTargetAttendancePct(double pct) async {
-    _targetAttendancePct = pct < 0.75 ? 0.75 : pct;
-    debugPrint('[API] setTargetAttendancePct(pct: $_targetAttendancePct)');
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setDouble(_keyTargetAttendancePct, _targetAttendancePct);
-    } catch (_) {}
-  }
+  String get baseUrl => EtlabApiClient.buildBaseUrl(_sessionStore.subdomain);
 
-  String get baseUrl {
-    final url = 'https://$_subdomain.etlab.in/androidapp';
-    if (!url.startsWith('https://')) {
-      throw Exception('Insecure URL blocked: $url');
-    }
-    return url;
-  }
+  Future<void> setTargetAttendancePct(double pct) =>
+      _sessionStore.setTargetAttendancePct(pct);
 
-  Map<String, String> get _authHeaders {
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-    if (_accessToken != null && _accessToken!.isNotEmpty) {
-      final token = _accessToken!.startsWith('Bearer ')
-          ? _accessToken!
-          : 'Bearer $_accessToken';
-      headers['Authorization'] = token;
-    }
-    return headers;
-  }
-
-  /// Initialize session from local data storage on app startup.
+  /// Initialize session from local storage on app startup.
   Future<bool> initSession() async {
     debugPrint('[SESSION] initSession()');
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedSub = prefs.getString(_keySubdomain);
-      if (savedSub == null ||
-          savedSub.contains('://') ||
-          savedSub.contains('/') ||
-          savedSub.trim().isEmpty) {
-        _subdomain = 'sctce';
-        await prefs.setString(_keySubdomain, 'sctce');
-      } else {
-        _subdomain = savedSub.trim();
-      }
-      _accessToken = await _secureStorage.read(key: _keyAccessToken);
-      if (_accessToken != null && _accessToken!.startsWith('mock_')) {
-        _accessToken = null;
-        await _secureStorage.delete(key: _keyAccessToken);
-      }
-
-      // Cleanup legacy shared prefs token if it exists
-      if (prefs.containsKey(_keyAccessToken)) {
-        await prefs.remove(_keyAccessToken);
-      }
-      // Sync the logged-in flag — covers upgrades from older app versions
-      // where the flag wasn't written but a valid token may still exist.
-      if (_accessToken != null && _accessToken!.isNotEmpty) {
-        await prefs.setBool(_keyIsLoggedIn, true);
-      } else {
-        await prefs.remove(_keyIsLoggedIn);
-      }
-      final savedPct = prefs.getDouble(_keyTargetAttendancePct) ?? 0.75;
-      _targetAttendancePct = savedPct < 0.75 ? 0.75 : savedPct;
-
-      final profileJson = prefs.getString(_keyProfileData);
-      if (profileJson != null && profileJson.isNotEmpty) {
-        _profileData = jsonDecode(profileJson) as Map<String, dynamic>?;
-      }
-
-      final attendanceJson = prefs.getString(_keyAttendanceData);
-      if (attendanceJson != null && attendanceJson.isNotEmpty) {
-        _attendanceData = jsonDecode(attendanceJson) as Map<String, dynamic>?;
-      }
-
-      final teachersJson = prefs.getString(_keyTeachersData);
-      if (teachersJson != null && teachersJson.isNotEmpty) {
-        _teachersData = jsonDecode(teachersJson) as Map<String, dynamic>?;
-      }
-      final fetchedAt = prefs.getInt(_keyTeachersFetchedAt);
-      if (fetchedAt != null) {
-        _teachersFetchedAt = DateTime.fromMillisecondsSinceEpoch(fetchedAt);
-      }
-
-      final semesterJson = prefs.getString(_keySemesterData);
-      if (semesterJson != null && semesterJson.isNotEmpty) {
-        _semesterListData = jsonDecode(semesterJson) as List<dynamic>?;
-      }
-
-      await _preloadCalendarCache();
+      await _sessionStore.init();
+      await _dataStore.init();
 
       if (isLoggedIn) {
         try {
           final timetable = DashboardDataMapper.parseTimetableFromProfile(
-            _profileData,
-            subjectsData: _attendanceData,
-            teachersData: _teachersData,
+            _dataStore.profileData,
+            subjectsData: _dataStore.attendanceData,
+            teachersData: _dataStore.teachersData,
           );
           final attendance = DashboardDataMapper.parseAttendanceFromSubjects(
-            _attendanceData ?? _profileData,
+            _dataStore.attendanceData ?? _dataStore.profileData,
           );
           HomeWidgetService.updateHomeScreenWidget(
             timetable: timetable,
             attendance: attendance,
-            profileData: _profileData,
-            attendanceData: _attendanceData,
-            teachersData: _teachersData,
+            profileData: _dataStore.profileData,
+            attendanceData: _dataStore.attendanceData,
+            teachersData: _dataStore.teachersData,
           );
         } catch (_) {}
 
@@ -169,41 +75,11 @@ class EtlabApiService {
         fetchAllData().catchError((_) {});
         return true;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[SESSION] initSession error: $e');
+    }
 
     return false;
-  }
-
-  Future<void> _saveSessionData({String? username}) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_keySubdomain, _subdomain);
-      if (_accessToken != null) {
-        await _secureStorage.write(key: _keyAccessToken, value: _accessToken!);
-        await prefs.setBool(_keyIsLoggedIn, true);
-      }
-      if (username != null) {
-        await prefs.setString(_keyUsername, username);
-      }
-      if (_profileData != null) {
-        await prefs.setString(_keyProfileData, jsonEncode(_profileData));
-      }
-      if (_attendanceData != null) {
-        await prefs.setString(_keyAttendanceData, jsonEncode(_attendanceData));
-      }
-      if (_teachersData != null) {
-        await prefs.setString(_keyTeachersData, jsonEncode(_teachersData));
-        if (_teachersFetchedAt != null) {
-          await prefs.setInt(
-            _keyTeachersFetchedAt,
-            _teachersFetchedAt!.millisecondsSinceEpoch,
-          );
-        }
-      }
-      if (_semesterListData != null) {
-        await prefs.setString(_keySemesterData, jsonEncode(_semesterListData));
-      }
-    } catch (_) {}
   }
 
   Future<bool> login({
@@ -212,225 +88,131 @@ class EtlabApiService {
     required String password,
     String hostelId = '0',
   }) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedUsername = prefs.getString(_keyUsername);
-      if (savedUsername != null &&
-          savedUsername.isNotEmpty &&
-          savedUsername != username.trim()) {
-        debugPrint('[SESSION] Different user logging in, purging old data...');
-        await _purgeAllUserData();
-      }
-    } catch (_) {}
+    final cleanSub = subdomain.trim().isEmpty ? 'sctce' : subdomain.trim();
+    final cleanUser = username.trim();
 
-    _subdomain = subdomain.trim().isEmpty ? 'sctce' : subdomain.trim();
+    // If a different user is logging in, purge previous student's cached data
+    if (_sessionStore.username != null &&
+        _sessionStore.username!.isNotEmpty &&
+        _sessionStore.username != cleanUser) {
+      debugPrint('[SESSION] Different user logging in, purging old data...');
+      await _purgeAllUserData();
+    }
+
     debugPrint(
-      '[API] login(subdomain: "$_subdomain", username: "${username.trim()}", hostelId: "${hostelId.trim()}")',
+      '[API] login(subdomain: "$cleanSub", username: "$cleanUser", hostelId: "${hostelId.trim()}")',
     );
-    final url = Uri.parse('$baseUrl/app/login');
 
-    final payload = {
-      'username': username.trim(),
-      'password': password,
-      'hostel': hostelId.trim().isEmpty ? '0' : hostelId.trim(),
-    };
+    final currentBaseUrl = EtlabApiClient.buildBaseUrl(cleanSub);
+    final data = await _apiClient.login(
+      baseUrl: currentBaseUrl,
+      username: cleanUser,
+      password: password,
+      hostelId: hostelId,
+    );
 
-    try {
-      // 1. Try JSON POST request
-      var response = await http
-          .post(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode(payload),
-          )
-          .timeout(const Duration(seconds: 15));
+    if (data != null) {
+      final token =
+          data['access_token'] ??
+          data['token'] ??
+          (data['data'] is Map ? data['data']['access_token'] : null);
 
-      Map<String, dynamic>? data;
-      try {
-        if (response.body.isNotEmpty) {
-          data = jsonDecode(response.body) as Map<String, dynamic>?;
-        }
-      } catch (_) {}
+      final resolvedToken = (token != null && token.toString().isNotEmpty)
+          ? token.toString()
+          : 'etlab_session_${cleanUser}_${DateTime.now().millisecondsSinceEpoch}';
 
-      // 2. Fallback to form-urlencoded if JSON fails or returns login=false
-      if (response.statusCode != 200 ||
-          data == null ||
-          data['login'] == false) {
-        final formResponse = await http
-            .post(
-              url,
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Accept': 'application/json',
-              },
-              body: payload,
-            )
-            .timeout(const Duration(seconds: 15));
-
-        if (formResponse.statusCode == 200 && formResponse.body.isNotEmpty) {
-          try {
-            final formData =
-                jsonDecode(formResponse.body) as Map<String, dynamic>?;
-            if (formData != null && formData['login'] != false) {
-              response = formResponse;
-              data = formData;
-            }
-          } catch (_) {}
-        }
-      }
-
-      if (data != null && (data['login'] != false && data['status'] != '0')) {
-        // Extract token if provided
-        final token =
-            data['access_token'] ??
-            data['token'] ??
-            (data['data'] is Map ? data['data']['access_token'] : null);
-
-        if (token != null && token.toString().isNotEmpty) {
-          _accessToken = token.toString();
-        } else {
-          // If server responds with valid login status without token, set session token
-          _accessToken =
-              'etlab_session_${username}_${DateTime.now().millisecondsSinceEpoch}';
-        }
-
-        _profileData = data;
-        debugPrint(
-          '[API] login(username: "${username.trim()}", status: "success")',
-        );
-
-        // Save session token & profile locally
-        await _saveSessionData(username: username);
-
-        // Fetch remaining endpoints in background
-        await fetchAllData();
-        await NotificationsService().seedAllHistoricalAbsences();
-        return true;
-      } else {
-        debugPrint(
-          '[API] login(username: "${username.trim()}", status: "failed")',
-        );
-        return false;
-      }
-    } on TimeoutException {
-      debugPrint(
-        '[ERROR] login(username: "${username.trim()}", status: "timeout")',
+      await _sessionStore.saveCredentials(
+        subdomain: cleanSub,
+        username: cleanUser,
+        accessToken: resolvedToken,
       );
-      throw Exception('Connection timed out. Please try again.');
-    } catch (e) {
-      debugPrint(
-        '[ERROR] login(username: "${username.trim()}", status: "error", error: "$e")',
-      );
-      throw Exception('Login failed. Check connection.');
+
+      await _dataStore.saveProfile(data);
+
+      debugPrint('[API] login(username: "$cleanUser", status: "success")');
+
+      // Fetch remaining endpoints in background
+      await fetchAllData();
+      await NotificationsService().seedAllHistoricalAbsences();
+      return true;
+    } else {
+      debugPrint('[API] login(username: "$cleanUser", status: "failed")');
+      return false;
     }
   }
 
   Future<Map<String, dynamic>?> fetchProfile() async {
     debugPrint('[API] fetchProfile()');
-    final url = Uri.parse('$baseUrl/app/profile');
     try {
-      final response = await http
-          .post(url, headers: _authHeaders)
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is Map<String, dynamic>) {
-          _profileData = data;
-          await _saveSessionData();
-          return data;
-        }
+      final data = await _apiClient.fetchProfile(
+        baseUrl: baseUrl,
+        token: _sessionStore.accessToken,
+      );
+      if (data != null) {
+        await _dataStore.saveProfile(data);
+        return data;
       }
     } catch (_) {
       rethrow;
     }
-    return _profileData;
+    return _dataStore.profileData;
   }
 
   Future<Map<String, dynamic>?> fetchAttendanceBySubject({
     String? semester,
   }) async {
     debugPrint('[API] fetchAttendanceBySubject(semester: "${semester ?? ""}")');
-    final url = Uri.parse('$baseUrl/app/attendancebysubject');
     try {
-      final bodyMap = (semester != null && semester.isNotEmpty)
-          ? {'sem_id': semester, 'semester': semester}
-          : <String, String>{};
-      final response = await http
-          .post(url, headers: _authHeaders, body: jsonEncode(bodyMap))
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is Map<String, dynamic>) {
-          if (semester == null ||
-              semester.isEmpty ||
-              semester == _profileData?['sem_id']?.toString()) {
-            _attendanceData = data;
-            await _saveSessionData();
-          }
-          return data;
+      final data = await _apiClient.fetchAttendanceBySubject(
+        baseUrl: baseUrl,
+        token: _sessionStore.accessToken,
+        semester: semester,
+      );
+      if (data != null) {
+        final currentSemId = _dataStore.profileData?['sem_id']?.toString();
+        if (semester == null || semester.isEmpty || semester == currentSemId) {
+          await _dataStore.saveAttendance(data);
         }
+        return data;
       }
     } catch (_) {
       rethrow;
     }
-    return _attendanceData;
+    return _dataStore.attendanceData;
   }
 
   Future<Map<String, dynamic>?> fetchTeachers() async {
     debugPrint('[API] fetchTeachers()');
-    final url = Uri.parse('$baseUrl/app/teachers');
     try {
-      final response = await http
-          .post(url, headers: _authHeaders)
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is Map<String, dynamic>) {
-          _teachersData = data;
-          _teachersFetchedAt = DateTime.now();
-          await _saveSessionData();
-          return data;
-        }
+      final data = await _apiClient.fetchTeachers(
+        baseUrl: baseUrl,
+        token: _sessionStore.accessToken,
+      );
+      if (data != null) {
+        await _dataStore.saveTeachers(data);
+        return data;
       }
     } catch (_) {
       rethrow;
     }
-    return _teachersData;
+    return _dataStore.teachersData;
   }
 
   Future<List<dynamic>?> fetchSemesterList() async {
     debugPrint('[API] fetchSemesterList()');
-    final url = Uri.parse('$baseUrl/app/semesterlist');
     try {
-      final response = await http
-          .post(url, headers: _authHeaders)
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (data is List<dynamic>) {
-          _semesterListData = data;
-          await _saveSessionData();
-          return data;
-        } else if (data is Map<String, dynamic>) {
-          final semList =
-              data['semesters'] ??
-              data['data'] ??
-              data['semesterlist'] ??
-              data['semesters_list'];
-          if (semList is List<dynamic>) {
-            _semesterListData = semList;
-            await _saveSessionData();
-            return semList;
-          }
-        }
+      final data = await _apiClient.fetchSemesterList(
+        baseUrl: baseUrl,
+        token: _sessionStore.accessToken,
+      );
+      if (data != null) {
+        await _dataStore.saveSemesterList(data);
+        return data;
       }
     } catch (_) {
       rethrow;
     }
-    return _semesterListData;
+    return _dataStore.semesterListData;
   }
 
   Future<Map<String, dynamic>?> fetchAttendanceByDayPeriod({
@@ -441,27 +223,23 @@ class EtlabApiService {
     debugPrint(
       '[API] fetchAttendanceByDayPeriod(month: $month, year: $year, semester: "${semester ?? ""}")',
     );
-    final url = Uri.parse('$baseUrl/app/attendancebydayperiod');
     final sem = (semester != null && semester.isNotEmpty)
         ? semester
-        : (_profileData?['sem_id']?.toString() ??
-            _profileData?['student']?['sem_id']?.toString() ??
+        : (_dataStore.profileData?['sem_id']?.toString() ??
+            _dataStore.profileData?['student']?['sem_id']?.toString() ??
             '');
-    final payload = {
-      'month': month.toString(),
-      'semester': sem,
-      'year': year.toString(),
-    };
+
     try {
-      final response = await http
-          .post(url, headers: _authHeaders, body: jsonEncode(payload))
-          .timeout(const Duration(seconds: 15));
-      if (response.statusCode == 200 && response.body.isNotEmpty) {
-        final data = jsonDecode(response.body);
-        if (data is Map<String, dynamic>) {
-          await cacheMonthAttendance(month, year, data, semester: semester);
-          return data;
-        }
+      final data = await _apiClient.fetchAttendanceByDayPeriod(
+        baseUrl: baseUrl,
+        token: _sessionStore.accessToken,
+        month: month,
+        year: year,
+        semester: sem,
+      );
+      if (data != null) {
+        await cacheMonthAttendance(month, year, data, semester: semester);
+        return data;
       }
     } catch (_) {
       rethrow;
@@ -469,211 +247,45 @@ class EtlabApiService {
     return null;
   }
 
-  static const String _keyCalendarIndex = 'etlab_calendar_months_index';
-
-  String _getMonthStorageKey(int month, int year, String? semester) {
-    final semKey = (semester != null && semester.isNotEmpty)
-        ? semester
-        : (_profileData?['sem_id']?.toString() ?? 'default');
-    return 'etlab_month_${year}_${month}_$semKey';
-  }
-
   Map<String, dynamic>? getMemoryCachedMonth(
     int month,
     int year, {
     String? semester,
-  }) {
-    final semKey = (semester != null && semester.isNotEmpty)
-        ? semester
-        : (_profileData?['sem_id']?.toString() ?? 'default');
-    final key = '${year}_${month}_$semKey';
-    if (_monthMemoryCache.containsKey(key)) {
-      return _monthMemoryCache[key];
-    }
-    final prefix = '${year}_${month}_';
-    for (var k in _monthMemoryCache.keys) {
-      if (k.startsWith(prefix)) return _monthMemoryCache[k];
-    }
-    return null;
-  }
+  }) =>
+      _dataStore.getMemoryCachedMonth(month, year, semester: semester);
 
-  Future<void> _preloadCalendarCache() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final indexList = prefs.getStringList(_keyCalendarIndex) ?? [];
-      for (final keyStr in indexList) {
-        final jsonStr = prefs.getString('etlab_month_$keyStr');
-        if (jsonStr != null && jsonStr.isNotEmpty) {
-          final data = jsonDecode(jsonStr);
-          if (data is Map<String, dynamic>) {
-            _monthMemoryCache[keyStr] = data;
-          }
-        }
-      }
-    } catch (_) {}
-  }
+  Map<String, dynamic>? getCachedDayData(DateTime date) =>
+      _dataStore.getCachedDayData(date);
 
-  /// Returns cached calendar day data for a given date (e.g. DateTime.now()).
-  Map<String, dynamic>? getCachedDayData(DateTime date) {
-    final y = date.year;
-    final m = date.month;
-    final dStr = '${y.toString().padLeft(4, '0')}-${m.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-
-    for (final monthData in _monthMemoryCache.values) {
-      dynamic attends = monthData['attends'];
-      if (attends == null && monthData['data'] is Map) {
-        attends = monthData['data']['attends'];
-      }
-      if (attends is List) {
-        for (final item in attends) {
-          if (item is Map<String, dynamic> && item['date']?.toString() == dStr) {
-            return item;
-          }
-        }
-      }
-    }
-    return null;
-  }
-
-  /// Checks whether today (or a specific date) is marked as a holiday in the calendar data.
-  ({bool isHoliday, String? reason}) getHolidayStatus({DateTime? date}) {
-    final target = date ?? DateTime.now();
-    final dayData = getCachedDayData(target);
-    final isWeekend = target.weekday == DateTime.saturday || target.weekday == DateTime.sunday;
-
-    if (dayData == null) {
-      return (isHoliday: isWeekend, reason: isWeekend ? 'Weekend' : null);
-    }
-
-    final isHolidayFlag = dayData['holiday'] == true;
-    final reason = dayData['holiday_reason']?.toString().trim();
-    final periods = (dayData['periods'] as List?) ?? const [];
-    final valid = periods.whereType<Map>().where((p) {
-      final att = p['attendance']?.toString().trim().toLowerCase() ?? '';
-      return att.isNotEmpty && att != 'na' && att != 'n/a';
-    }).toList();
-
-    final isHoliday = isHolidayFlag || (valid.isEmpty && isWeekend);
-    return (
-      isHoliday: isHoliday,
-      reason: reason != null && reason.isNotEmpty ? reason : (isWeekend ? 'Weekend' : null),
-    );
-  }
+  ({bool isHoliday, String? reason}) getHolidayStatus({DateTime? date}) =>
+      _dataStore.getHolidayStatus(date: date);
 
   Future<Map<String, dynamic>?> getCachedMonthAttendance(
     int month,
     int year, {
     String? semester,
-  }) async {
-    debugPrint(
-      '[CACHE] getCachedMonthAttendance(month: $month, year: $year, semester: "${semester ?? ""}")',
-    );
-    final mem = getMemoryCachedMonth(month, year, semester: semester);
-    if (mem != null) return mem;
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final targetKey = _getMonthStorageKey(month, year, semester);
-      String? jsonStr = prefs.getString(targetKey);
-
-      if (jsonStr == null || jsonStr.isEmpty) {
-        final prefix = 'etlab_month_${year}_${month}_';
-        final matchingKeys = prefs.getKeys().where((k) => k.startsWith(prefix));
-        if (matchingKeys.isNotEmpty) {
-          jsonStr = prefs.getString(matchingKeys.first);
-        }
-      }
-
-      if (jsonStr != null && jsonStr.isNotEmpty) {
-        final data = jsonDecode(jsonStr) as Map<String, dynamic>?;
-        if (data != null) {
-          final semKey = (semester != null && semester.isNotEmpty)
-              ? semester
-              : (_profileData?['sem_id']?.toString() ?? 'default');
-          _monthMemoryCache['${year}_${month}_$semKey'] = data;
-        }
-        return data;
-      }
-    } catch (_) {}
-    return null;
-  }
+  }) =>
+      _dataStore.getCachedMonthAttendance(month, year, semester: semester);
 
   Future<void> cacheMonthAttendance(
     int month,
     int year,
     Map<String, dynamic> data, {
     String? semester,
-  }) async {
-    final semKey = (semester != null && semester.isNotEmpty)
-        ? semester
-        : (_profileData?['sem_id']?.toString() ??
-            _profileData?['student']?['sem_id']?.toString() ??
-            '');
-    debugPrint(
-      '[CACHE] cacheMonthAttendance(month: $month, year: $year, semester: "$semKey")',
-    );
-    try {
-      final attends = data['attends'];
-      final prefs = await SharedPreferences.getInstance();
-      final monthKey = '${year}_${month}_$semKey';
-      final storageKey = 'etlab_month_$monthKey';
+  }) =>
+      _dataStore.cacheMonthAttendance(
+        month,
+        year,
+        data,
+        semester: semester,
+        onFirstTimeForMonth: (d) => NotificationsService().seedMonthBaseline(d),
+      );
 
-      // SAFEGUARD: Do not overwrite valid cached month data with empty data
-      if (attends is List && attends.isEmpty) {
-        final existing = prefs.getString(storageKey);
-        if (existing != null && existing.isNotEmpty) {
-          debugPrint('[CACHE] Preserving existing cached month data for $monthKey (new data was empty)');
-          return;
-        }
-      }
+  Future<List<String>> getStoredCalendarMonths() =>
+      _dataStore.getStoredCalendarMonths();
 
-      _monthMemoryCache[monthKey] = data;
-      await prefs.setString(storageKey, jsonEncode(data));
-
-      final List<String> indexList =
-          prefs.getStringList(_keyCalendarIndex) ?? [];
-      final bool isFirstTimeForMonth = !indexList.contains(monthKey);
-
-      if (isFirstTimeForMonth) {
-        indexList.add(monthKey);
-        await prefs.setStringList(_keyCalendarIndex, indexList);
-        await NotificationsService().seedMonthBaseline(data);
-      }
-    } catch (_) {}
-  }
-
-  Future<List<String>> getStoredCalendarMonths() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getStringList(_keyCalendarIndex) ?? [];
-    } catch (_) {
-      return [];
-    }
-  }
-
-  Future<Map<String, Map<String, dynamic>>> getAllArchivedCalendarData() async {
-    debugPrint('[CACHE] getAllArchivedCalendarData()');
-    final Map<String, Map<String, dynamic>> allData = {};
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final indexList = prefs.getStringList(_keyCalendarIndex) ?? [];
-      for (final keyStr in indexList) {
-        final storageKey = 'etlab_month_$keyStr';
-        final jsonStr = prefs.getString(storageKey);
-        if (jsonStr != null && jsonStr.isNotEmpty) {
-          final decoded = jsonDecode(jsonStr);
-          if (decoded is Map<String, dynamic> && decoded['attends'] is List) {
-            for (var item in (decoded['attends'] as List<dynamic>)) {
-              if (item is Map<String, dynamic> && item['date'] != null) {
-                allData[item['date'].toString()] = item;
-              }
-            }
-          }
-        }
-      }
-    } catch (_) {}
-    return allData;
-  }
+  Future<Map<String, Map<String, dynamic>>> getAllArchivedCalendarData() =>
+      _dataStore.getAllArchivedCalendarData();
 
   Future<void> fetchAllData() {
     if (_activeFetchAllData != null) {
@@ -696,8 +308,8 @@ class EtlabApiService {
         debugPrint('[API] fetchProfile notice: $e');
       }
 
-      final semId = _profileData?['sem_id']?.toString() ??
-          _profileData?['student']?['sem_id']?.toString() ??
+      final semId = _dataStore.profileData?['sem_id']?.toString() ??
+          _dataStore.profileData?['student']?['sem_id']?.toString() ??
           '';
 
       final List<Future> fetchTasks = [
@@ -748,24 +360,23 @@ class EtlabApiService {
 
       try {
         final timetable = DashboardDataMapper.parseTimetableFromProfile(
-          _profileData,
-          subjectsData: _attendanceData,
-          teachersData: _teachersData,
+          _dataStore.profileData,
+          subjectsData: _dataStore.attendanceData,
+          teachersData: _dataStore.teachersData,
         );
         final attendance = DashboardDataMapper.parseAttendanceFromSubjects(
-          _attendanceData ?? _profileData,
+          _dataStore.attendanceData ?? _dataStore.profileData,
         );
         await HomeWidgetService.updateHomeScreenWidget(
           timetable: timetable,
           attendance: attendance,
-          profileData: _profileData,
-          attendanceData: _attendanceData,
-          teachersData: _teachersData,
+          profileData: _dataStore.profileData,
+          attendanceData: _dataStore.attendanceData,
+          teachersData: _dataStore.teachersData,
         );
       } catch (_) {}
 
       // Reschedule next background refresh — 1h after this manual fetch.
-      // Silently no-ops if the user is logged out by the time this runs.
       if (isLoggedIn) {
         try {
           await BackgroundService.scheduleNextRefresh();
@@ -778,30 +389,8 @@ class EtlabApiService {
 
   Future<void> _purgeAllUserData() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Remove known static keys
-      await prefs.remove(_keySubdomain);
-      await prefs.remove(_keyUsername);
-      await _secureStorage.delete(key: _keyAccessToken);
-      await prefs.remove(_keyProfileData);
-      await prefs.remove(_keyAttendanceData);
-      await prefs.remove(_keyTeachersData);
-      await prefs.remove(_keyTeachersFetchedAt);
-      await prefs.remove(_keySemesterData);
-      await prefs.remove(_keyTargetAttendancePct);
-      await prefs.remove(_keyCalendarIndex);
-      await prefs.remove(_keyIsLoggedIn);
-
-      // Remove dynamic caches (months, semesters, etc.)
-      final allKeys = prefs.getKeys().toList();
-      for (final key in allKeys) {
-        if (key.startsWith('etlab_month_') ||
-            key.startsWith('etlab_sem_attendance_')) {
-          await prefs.remove(key);
-        }
-      }
-
+      await _sessionStore.clearSession();
+      await _dataStore.clearAllData();
       await NotificationsService().clearNotificationsData();
       await HomeWidgetService.clearWidgetData();
     } catch (_) {}
@@ -809,15 +398,7 @@ class EtlabApiService {
 
   Future<void> logout() async {
     debugPrint('[SESSION] logout()');
-    _accessToken = null;
-    _profileData = null;
-    _attendanceData = null;
-    _teachersData = null;
-    _teachersFetchedAt = null;
-    _semesterListData = null;
-    _monthMemoryCache.clear();
     _activeFetchAllData = null;
-
     await _purgeAllUserData();
     await BackgroundService.cancelAll();
   }

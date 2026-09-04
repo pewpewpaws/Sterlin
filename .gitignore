@@ -76,3 +76,7 @@ app.*.map.json
 
 # Local Testing & Mock Tools
 Test/
+
+# AI & Planning
+.agents/
+Plans/
