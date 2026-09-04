@@ -222,10 +222,10 @@
     "semantic_hash": "09385fc66805f7331768758db09587d5"
   },
   "lib/widgets/navigation_tutorial.dart": {
-    "mtime": 1788468051.0323777,
-    "seen": 1788502225.4827743,
-    "ast_hash": "b78d38c2cd1b19d1e3a9f434e408515f",
-    "semantic_hash": "b78d38c2cd1b19d1e3a9f434e408515f"
+    "mtime": 1788509207.8262992,
+    "seen": 1788509283.0304956,
+    "ast_hash": "aaad9d49cc76c5101ee05c6fcbfd2862",
+    "semantic_hash": ""
   },
   "lib/widgets/next_class_card.dart": {
     "mtime": 1788473774.0102332,

@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Interactive first-run onboarding tutorial highlighting key navigation targets.
 class NavigationTutorial {
   NavigationTutorial._();
 
@@ -13,7 +15,6 @@ class NavigationTutorial {
   static final GlobalKey attendanceKey = GlobalKey();
 
   static const String _seenKey = 'app_nav_tutorial_seen';
-
   static final Completer<void> _firstRunCompleter = Completer<void>();
 
   static Future<void> get waitForFirstRun => _firstRunCompleter.future;
@@ -75,6 +76,7 @@ class _StepSpec {
   final bool showOutline;
   final bool spotlight;
   final _StepAction action;
+
   const _StepSpec(
     this.title,
     this.body,
@@ -98,12 +100,7 @@ class _TutorialOverlay extends StatefulWidget {
 class _TutorialOverlayState extends State<_TutorialOverlay>
     with SingleTickerProviderStateMixin {
   int _step = 0;
-  Rect? _displayRect;
-  double? _displayTop;
-  double _borderScale = 0.0;
-  double _scrimScale = 1.0;
-  double _holeStrength = 0.0;
-  double _cardHeight = 260;
+  double _cardHeight = 240;
   Rect? _dockRect;
   Rect? _bellRect;
   Rect? _attendanceRect;
@@ -113,18 +110,16 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
   final GlobalKey _cardKey = GlobalKey();
   late final AnimationController _moveC = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 480),
+    duration: const Duration(milliseconds: 450),
   );
   late final CurvedAnimation _moveCurved =
       CurvedAnimation(parent: _moveC, curve: Curves.easeInOutCubic);
-  RectTween? _rectTween;
-  Tween<double>? _topTween;
-  Tween<double>? _borderTween;
-  Tween<double>? _scrimTween;
-  Tween<double>? _holeTween;
 
-  bool _hasHole(int step) =>
-      _steps[step].spotlight && step < _steps.length - 1;
+  late RectTween _rectTween;
+  late Tween<double> _topTween;
+  late Tween<double> _borderTween;
+  late Tween<double> _scrimTween;
+  late Tween<double> _holeTween;
 
   static const List<_StepSpec> _steps = [
     _StepSpec(
@@ -172,6 +167,8 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
   static Widget _buildBellArt(BuildContext context) => const _BellWobble();
   static Widget _buildDoneArt(BuildContext context) => const _DoneCheck();
 
+  bool _hasHole(int step) => _steps[step].spotlight && step < _steps.length - 1;
+
   Rect _targetFor(int step) {
     switch (_steps[step].target) {
       case _StepTarget.bell:
@@ -207,23 +204,85 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     return Rect.fromLTWH(size.width - 62, topInset + 30, 42, 42);
   }
 
+  double _topFor(int step, Size size) {
+    if (!_steps[step].spotlight || step >= _steps.length - 1) {
+      return math.max(16.0, (size.height - _cardHeight) / 2);
+    }
+    final target = _targetFor(step);
+    if (_steps[step].target == _StepTarget.bell) {
+      return math.min(
+        target.bottom + 16,
+        math.max(12.0, size.height - _cardHeight - 12),
+      );
+    }
+    return math.max(target.top - 16 - _cardHeight, 12);
+  }
+
+  Rect _rectTargetFor(int step, Size size) {
+    if (!_steps[step].spotlight || step >= _steps.length - 1) {
+      return Rect.fromCircle(
+        center: size.center(Offset.zero),
+        radius: size.longestSide * 0.75,
+      );
+    }
+    return _targetFor(step);
+  }
+
   @override
   void initState() {
     super.initState();
-    _moveC.addListener(_onMoveTick);
+    final initialRect = Rect.fromCircle(center: Offset.zero, radius: 100);
+    _rectTween = RectTween(begin: initialRect, end: initialRect);
+    _topTween = Tween<double>(begin: 100, end: 100);
+    _borderTween = Tween<double>(begin: 0, end: 0);
+    _scrimTween = Tween<double>(begin: 1, end: 1);
+    _holeTween = Tween<double>(begin: 0, end: 0);
+
     NavigationTutorial.lastTabIndex.addListener(_onTabSignal);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _placeInitial());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initPosition());
   }
 
-  void _onMoveTick() {
+  void _initPosition() {
     if (!mounted) return;
-    setState(() {
-      _displayRect = _rectTween?.evaluate(_moveCurved) ?? _displayRect;
-      _displayTop = _topTween?.evaluate(_moveCurved) ?? _displayTop;
-      _borderScale = _borderTween?.evaluate(_moveCurved) ?? _borderScale;
-      _scrimScale = _scrimTween?.evaluate(_moveCurved) ?? _scrimScale;
-      _holeStrength = _holeTween?.evaluate(_moveCurved) ?? _holeStrength;
-    });
+    _measure();
+    final size = MediaQuery.of(context).size;
+    final cardH = _cardKey.currentContext?.size?.height;
+    if (cardH != null && cardH > 0) _cardHeight = cardH;
+
+    final targetRect = _rectTargetFor(0, size);
+    final targetTop = _topFor(0, size);
+
+    _rectTween = RectTween(begin: targetRect, end: targetRect);
+    _topTween = Tween<double>(begin: targetTop, end: targetTop);
+    _borderTween = Tween<double>(begin: 0.0, end: 0.0);
+    _scrimTween = Tween<double>(begin: 1.0, end: 1.0);
+    _holeTween = Tween<double>(begin: 0.0, end: 0.0);
+    _tabBaseline = NavigationTutorial.lastTabIndex.value;
+
+    setState(() {});
+  }
+
+  void _measure() {
+    Rect? measure(GlobalKey key) {
+      final ctx = key.currentContext;
+      if (ctx == null) return null;
+      final ro = ctx.findRenderObject();
+      if (ro is RenderBox && ro.attached && ro.hasSize) {
+        final topLeft = ro.localToGlobal(Offset.zero);
+        final bottomRight = ro.localToGlobal(
+          Offset(ro.size.width, ro.size.height),
+        );
+        return Rect.fromPoints(topLeft, bottomRight);
+      }
+      return null;
+    }
+
+    final dock = measure(NavigationTutorial.navBarKey);
+    final bell = measure(NavigationTutorial.bellKey);
+    final attendance = measure(NavigationTutorial.attendanceKey);
+    if (dock != null) _dockRect = dock;
+    if (bell != null) _bellRect = bell;
+    if (attendance != null) _attendanceRect = attendance;
   }
 
   void _onTabSignal() {
@@ -250,7 +309,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     if (_advancing) return;
     _advancing = true;
     HapticFeedback.mediumImpact();
-    Future.delayed(const Duration(milliseconds: 450), () {
+    Future.delayed(const Duration(milliseconds: 400), () {
       if (!mounted) return;
       _advancing = false;
       if (_steps[_step].action == _StepAction.none) return;
@@ -258,133 +317,37 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     });
   }
 
-  double _topFor(int step, Size size) {
-    if (!_steps[step].spotlight || step >= _steps.length - 1) {
-      return math.max(16.0, (size.height - _cardHeight) / 2);
-    }
-    final target = _targetFor(step);
-    if (_steps[step].target == _StepTarget.bell) {
-      return math.min(
-        target.bottom + 16,
-        math.max(12.0, size.height - _cardHeight - 12),
-      );
-    }
-    return math.max(target.top - 16 - _cardHeight, 12);
-  }
-
-  Rect _rectTargetFor(int step, Size size) {
-    if (!_steps[step].spotlight || step >= _steps.length - 1) {
-      return Rect.fromCircle(
-        center: size.center(Offset.zero),
-        radius: size.longestSide * 0.75,
-      );
-    }
-    return _targetFor(step);
-  }
-
-  void _placeInitial() {
-    _measure();
-    if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final h = _cardKey.currentContext?.size?.height;
-      if (h != null && h > 0) _cardHeight = h;
-      final size = MediaQuery.of(context).size;
-      setState(() {
-        _displayRect = _rectTargetFor(0, size);
-        _displayTop = _topFor(0, size);
-        _borderScale = 0.0;
-        _scrimScale = 1.0;
-        _holeStrength = 0.0;
-        _tabBaseline = NavigationTutorial.lastTabIndex.value;
-      });
-    });
-  }
-
-  void _measure() {
-    Rect? measure(GlobalKey key) {
-      final ctx = key.currentContext;
-      if (ctx == null) return null;
-      final ro = ctx.findRenderObject();
-      if (ro is RenderBox && ro.attached && ro.hasSize) {
-        final topLeft = ro.localToGlobal(Offset.zero);
-        final bottomRight = ro.localToGlobal(
-          Offset(ro.size.width, ro.size.height),
-        );
-        return Rect.fromPoints(topLeft, bottomRight);
-      }
-      return null;
-    }
-
-    final dock = measure(NavigationTutorial.navBarKey);
-    final bell = measure(NavigationTutorial.bellKey);
-    final attendance = measure(NavigationTutorial.attendanceKey);
-    if (!mounted || (dock == null && bell == null && attendance == null)) return;
-    setState(() {
-      if (dock != null) _dockRect = dock;
-      if (bell != null) _bellRect = bell;
-      if (attendance != null) _attendanceRect = attendance;
-    });
-  }
-
   void _goToStep(int step) {
     HapticFeedback.selectionClick();
-    final fromRect = _displayRect;
-    final fromTop = _displayTop;
-    final fromBorder = _borderScale;
-    final fromScrim = _scrimScale;
-    final fromHole = _holeStrength;
-    final prevStep = _step;
+    _measure();
+    final cardH = _cardKey.currentContext?.size?.height;
+    if (cardH != null && cardH > 0) _cardHeight = cardH;
+
+    final size = MediaQuery.of(context).size;
+    final isLast = step >= _steps.length - 1;
+
+    final fromRect = _rectTween.evaluate(_moveCurved) ?? _targetFor(_step);
+    final fromTop = _topTween.evaluate(_moveCurved);
+    final fromBorder = _borderTween.evaluate(_moveCurved);
+    final fromScrim = _scrimTween.evaluate(_moveCurved);
+    final fromHole = _holeTween.evaluate(_moveCurved);
+
+    final toRect = _rectTargetFor(step, size);
+    final toTop = _topFor(step, size);
+    final toBorder = isLast || !_steps[step].showOutline ? 0.0 : 1.0;
+    final toScrim = isLast ? 0.0 : 1.0;
+    final toHole = _hasHole(step) ? 1.0 : 0.0;
+
+    _rectTween = RectTween(begin: fromRect, end: toRect);
+    _topTween = Tween<double>(begin: fromTop, end: toTop);
+    _borderTween = Tween<double>(begin: fromBorder, end: toBorder);
+    _scrimTween = Tween<double>(begin: fromScrim, end: toScrim);
+    _holeTween = Tween<double>(begin: fromHole, end: toHole);
+
+    _tabBaseline = NavigationTutorial.lastTabIndex.value;
     setState(() => _step = step);
-    _moveC.stop();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _measure();
-      final h = _cardKey.currentContext?.size?.height;
-      if (h != null && h > 0) _cardHeight = h;
-      final size = MediaQuery.of(context).size;
-      final isLast = step >= _steps.length - 1;
-      final toRect = _rectTargetFor(step, size);
-      final toTop = _topFor(step, size);
-      final toBorder = isLast || !_steps[step].showOutline ? 0.0 : 1.0;
-      final toScrim = isLast ? 0.0 : 1.0;
-      final toHole = _hasHole(step) ? 1.0 : 0.0;
-      _tabBaseline = NavigationTutorial.lastTabIndex.value;
 
-      void snap() {
-        setState(() {
-          _displayRect = toRect;
-          _displayTop = toTop;
-          _borderScale = toBorder;
-          _scrimScale = toScrim;
-          _holeStrength = toHole;
-        });
-      }
-
-      if (fromRect == null || fromTop == null) {
-        snap();
-        return;
-      }
-      final moved = (fromRect.center.dy - toRect.center.dy).abs() > 1.0 ||
-          (fromRect.center.dx - toRect.center.dx).abs() > 1.0 ||
-          (fromTop - toTop).abs() > 1.0 ||
-          (fromBorder - toBorder).abs() > 0.01 ||
-          (fromScrim - toScrim).abs() > 0.01 ||
-          (fromHole - toHole).abs() > 0.01 ||
-          prevStep == step;
-      if (!moved) {
-        snap();
-        return;
-      }
-      setState(() {
-        _rectTween = RectTween(begin: fromRect, end: toRect);
-        _topTween = Tween<double>(begin: fromTop, end: toTop);
-        _borderTween = Tween<double>(begin: fromBorder, end: toBorder);
-        _scrimTween = Tween<double>(begin: fromScrim, end: toScrim);
-        _holeTween = Tween<double>(begin: fromHole, end: toHole);
-      });
-      _moveC.forward(from: 0);
-    });
+    _moveC.forward(from: 0);
   }
 
   void _next() {
@@ -413,81 +376,61 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
     super.dispose();
   }
 
-  List<Widget> _blockers(Size size) {
-    Widget block(Rect r) => Positioned.fromRect(
-          rect: r,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {},
-          ),
-        );
-
-    final interactive = _steps[_step].action != _StepAction.none;
-    final rect = _displayRect;
-    if (!interactive || rect == null || !_hasHole(_step)) {
-      return [block(Rect.fromLTWH(0, 0, size.width, size.height))];
-    }
-
-    final hole = rect.inflate(12);
-    final w = size.width;
-    final h = size.height;
-    return [
-      block(Rect.fromLTWH(0, 0, w, math.max(0, hole.top))),
-      block(Rect.fromLTWH(0, hole.bottom, w, math.max(0, h - hole.bottom))),
-      block(Rect.fromLTWH(0, hole.top, math.max(0, hole.left), hole.height)),
-      block(
-        Rect.fromLTWH(
-          hole.right,
-          hole.top,
-          math.max(0, w - hole.right),
-          hole.height,
-        ),
-      ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final size = MediaQuery.of(context).size;
-    final rect = _displayRect;
-    final top = _displayTop;
+    final isInteractive = _steps[_step].action != _StepAction.none;
+    final currentTarget = _hasHole(_step) ? _targetFor(_step).inflate(12) : null;
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
       builder: (context, entrance, _) => Opacity(
         opacity: entrance,
         child: Stack(
           children: [
+            // RepaintBoundary isolates canvas scrim rendering to GPU
             Positioned.fill(
-              child: IgnorePointer(
+              child: RepaintBoundary(
                 child: CustomPaint(
-                  painter: rect == null
-                      ? null
-                      : _SpotlightPainter(
-                          hole: rect,
-                          borderScale: _borderScale,
-                          scrimScale: _scrimScale,
-                          holeStrength: _holeStrength,
-                        ),
+                  painter: _SpotlightPainter(
+                    animation: _moveCurved,
+                    rectTween: _rectTween,
+                    borderTween: _borderTween,
+                    scrimTween: _scrimTween,
+                    holeTween: _holeTween,
+                  ),
                 ),
               ),
             ),
-            ..._blockers(size),
-            if (rect != null && top != null)
-              Positioned(
-                left: 20,
-                right: 20,
-                top: top,
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
+            // High-efficiency gesture barrier: passes through touches only inside active hole
+            Positioned.fill(
+              child: _HoleHitBlocker(
+                hole: currentTarget,
+                isInteractive: isInteractive,
+              ),
+            ),
+            // Animated card position driven by topTween without rebuilding the card content
+            AnimatedBuilder(
+              animation: _moveCurved,
+              builder: (context, child) {
+                return Positioned(
+                  left: 20,
+                  right: 20,
+                  top: _topTween.evaluate(_moveCurved),
+                  child: child!,
+                );
+              },
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: RepaintBoundary(
                     child: _buildCard(theme),
                   ),
                 ),
               ),
+            ),
           ],
         ),
       ),
@@ -510,7 +453,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
         boxShadow: [
           BoxShadow(
             color: Colors.black.withAlpha(70),
-            blurRadius: 30,
+            blurRadius: 28,
             offset: const Offset(0, 12),
           ),
         ],
@@ -519,7 +462,7 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
         mainAxisSize: MainAxisSize.min,
         children: [
           AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
+            duration: const Duration(milliseconds: 200),
             switchInCurve: Curves.easeOut,
             switchOutCurve: Curves.easeIn,
             transitionBuilder: (child, anim) {
@@ -570,24 +513,19 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
                 Expanded(
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: isAction
+                    child: isAction || _step == 0
                         ? TextButton(
                             onPressed: _close,
                             child: const Text('Skip'),
                           )
-                        : (_step == 0
-                              ? TextButton(
-                                  onPressed: _close,
-                                  child: const Text('Skip'),
-                                )
-                              : TextButton.icon(
-                                  onPressed: _back,
-                                  icon: const Icon(
-                                    Icons.arrow_back_rounded,
-                                    size: 18,
-                                  ),
-                                  label: const Text('Back'),
-                                )),
+                        : TextButton.icon(
+                            onPressed: _back,
+                            icon: const Icon(
+                              Icons.arrow_back_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Back'),
+                          ),
                   ),
                 ),
                 ...List.generate(_steps.length, (i) {
@@ -632,6 +570,131 @@ class _TutorialOverlayState extends State<_TutorialOverlay>
   }
 }
 
+/// O(1) Gesture hit blocker using native RenderProxyBox.
+/// Blocks all touches outside [hole]; passes through touches inside [hole].
+class _HoleHitBlocker extends SingleChildRenderObjectWidget {
+  final Rect? hole;
+  final bool isInteractive;
+
+  const _HoleHitBlocker({
+    required this.hole,
+    required this.isInteractive,
+  });
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderHoleHitBlocker(hole: hole, isInteractive: isInteractive);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderHoleHitBlocker renderObject,
+  ) {
+    renderObject
+      ..hole = hole
+      ..isInteractive = isInteractive;
+  }
+}
+
+class _RenderHoleHitBlocker extends RenderProxyBox {
+  _RenderHoleHitBlocker({
+    this.hole,
+    required this.isInteractive,
+  });
+
+  Rect? hole;
+  bool isInteractive;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    // If interactive action step and user tapped inside the target hole,
+    // don't intercept — let the hit test pass through to the dock/button.
+    if (isInteractive && hole != null && hole!.contains(position)) {
+      return false;
+    }
+    // Block touch outside hole
+    result.add(BoxHitTestEntry(this, position));
+    return true;
+  }
+
+  @override
+  bool hitTestSelf(Offset position) => true;
+}
+
+/// Hardware-accelerated spotlight painter using GPU even-odd winding rule.
+class _SpotlightPainter extends CustomPainter {
+  _SpotlightPainter({
+    required this.animation,
+    required this.rectTween,
+    required this.borderTween,
+    required this.scrimTween,
+    required this.holeTween,
+  }) : super(repaint: animation);
+
+  final Animation<double> animation;
+  final RectTween rectTween;
+  final Tween<double> borderTween;
+  final Tween<double> scrimTween;
+  final Tween<double> holeTween;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = animation.value;
+    final hole = rectTween.transform(t);
+    if (hole == null) return;
+
+    final borderScale = borderTween.transform(t);
+    final scrimScale = scrimTween.transform(t);
+    final holeStrength = holeTween.transform(t);
+
+    final full = Offset.zero & size;
+    final effective = Rect.lerp(full, hole, holeStrength.clamp(0.0, 1.0))!;
+    final isCircular = (effective.width - effective.height).abs() < 20.0 &&
+        effective.width < 120.0;
+    final pad = isCircular ? 8.0 : 12.0;
+    final inflated = effective.inflate(pad);
+    final radius = isCircular
+        ? Radius.circular(inflated.shortestSide / 2)
+        : Radius.circular(math.min(30.0, inflated.shortestSide * 0.38));
+    final rrect = RRect.fromRectAndRadius(inflated, radius);
+
+    final scrimPaint = Paint()
+      ..color = Colors.black.withAlpha((160 * scrimScale).round());
+
+    if (holeStrength <= 0.001) {
+      canvas.drawRect(full, scrimPaint);
+    } else {
+      // GPU even-odd winding rule — hardware accelerated without CPU polygon difference
+      final path = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRect(full)
+        ..addRRect(rrect);
+      canvas.drawPath(path, scrimPaint);
+    }
+
+    if (borderScale > 0.01) {
+      canvas.drawRRect(
+        rrect,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 6
+          ..color = Colors.white.withAlpha((50 * borderScale).round())
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+      canvas.drawRRect(
+        rrect,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0
+          ..color = Colors.white.withAlpha((240 * borderScale).round()),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpotlightPainter oldDelegate) => false;
+}
+
 class _WaitingPulse extends StatefulWidget {
   final Color color;
   const _WaitingPulse({required this.color});
@@ -667,10 +730,10 @@ class _WaitingPulseState extends State<_WaitingPulse>
             Text(
               'Your turn',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: widget.color,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.8,
-              ),
+                    color: widget.color,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.8,
+                  ),
             ),
           ],
         ),
@@ -679,103 +742,19 @@ class _WaitingPulseState extends State<_WaitingPulse>
   }
 }
 
-class _SpotlightPainter extends CustomPainter {
-  _SpotlightPainter({
-    required this.hole,
-    this.borderScale = 1.0,
-    this.scrimScale = 1.0,
-    this.holeStrength = 1.0,
-  });
-
-  final Rect hole;
-  final double borderScale;
-  final double scrimScale;
-  final double holeStrength;
+class _BellWobble extends StatefulWidget {
+  const _BellWobble();
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final full = Offset.zero & size;
-    final effective = Rect.lerp(full, hole, holeStrength.clamp(0.0, 1.0))!;
-    final isCircular =
-        (effective.width - effective.height).abs() < 20.0 && effective.width < 120.0;
-    final pad = isCircular ? 8.0 : 12.0;
-    final inflated = effective.inflate(pad);
-    final radius = isCircular
-        ? Radius.circular(inflated.shortestSide / 2)
-        : Radius.circular(math.min(30.0, inflated.shortestSide * 0.38));
-    final rrect = RRect.fromRectAndRadius(inflated, radius);
-
-    final scrimPaint = Paint()
-      ..color = Colors.black.withAlpha((160 * scrimScale).round());
-    if (holeStrength <= 0.001) {
-      canvas.drawRect(full, scrimPaint);
-    } else {
-      final scrim = Path()..addRect(full);
-      final cutout = Path()..addRRect(rrect);
-      canvas.drawPath(
-        Path.combine(PathOperation.difference, scrim, cutout),
-        scrimPaint,
-      );
-    }
-
-    if (borderScale > 0.01) {
-      canvas.drawRRect(
-        rrect,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 8
-          ..color = Colors.white.withAlpha((60 * borderScale).round())
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-      );
-      canvas.drawRRect(
-        rrect,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.2
-          ..color = Colors.white.withAlpha((240 * borderScale).round()),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _SpotlightPainter oldDelegate) =>
-      oldDelegate.hole != hole ||
-      oldDelegate.borderScale != borderScale ||
-      oldDelegate.scrimScale != scrimScale ||
-      oldDelegate.holeStrength != holeStrength;
+  State<_BellWobble> createState() => _BellWobbleState();
 }
 
-class _LoopingAnimation extends StatefulWidget {
-  final Duration duration;
-  final bool reverse;
-  final Widget Function(BuildContext context, double value) builder;
-
-  const _LoopingAnimation({
-    required this.duration,
-    this.reverse = false,
-    required this.builder,
-  });
-
-  @override
-  State<_LoopingAnimation> createState() => _LoopingAnimationState();
-}
-
-class _LoopingAnimationState extends State<_LoopingAnimation>
+class _BellWobbleState extends State<_BellWobble>
     with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: widget.duration,
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.reverse) {
-      _c.repeat(reverse: true);
-    } else {
-      _c.repeat();
-    }
-  }
+    duration: const Duration(milliseconds: 1900),
+  )..repeat();
 
   @override
   void dispose() {
@@ -785,23 +764,11 @@ class _LoopingAnimationState extends State<_LoopingAnimation>
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return AnimatedBuilder(
       animation: _c,
-      builder: (context, _) => widget.builder(context, _c.value),
-    );
-  }
-}
-
-class _BellWobble extends StatelessWidget {
-  const _BellWobble();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return _LoopingAnimation(
-      duration: const Duration(milliseconds: 1900),
-      builder: (context, value) {
-        final angle = math.sin(value * 2 * math.pi) * 0.16;
+      builder: (context, _) {
+        final angle = math.sin(_c.value * 2 * math.pi) * 0.16;
         return Container(
           width: 58,
           height: 58,
@@ -823,17 +790,33 @@ class _BellWobble extends StatelessWidget {
   }
 }
 
-class _DoneCheck extends StatelessWidget {
+class _DoneCheck extends StatefulWidget {
   const _DoneCheck();
+
+  @override
+  State<_DoneCheck> createState() => _DoneCheckState();
+}
+
+class _DoneCheckState extends State<_DoneCheck>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return _LoopingAnimation(
-      duration: const Duration(milliseconds: 1200),
-      reverse: true,
-      builder: (context, value) {
-        final scale = 1.0 + 0.06 * math.sin(value * math.pi);
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final scale = 1.0 + 0.06 * math.sin(_c.value * math.pi);
         return Transform.scale(
           scale: scale,
           child: Container(
