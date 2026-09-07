@@ -1,5 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages all domain data fetched from the Etlab API, including
@@ -10,6 +14,8 @@ class EtlabDataStore {
   EtlabDataStore._internal();
 
   static const String _keyProfileData = 'etlab_profile_data';
+  static const String _keyProfileImagePath = 'etlab_profile_image_path';
+  static const String _keyProfileImageUrl = 'etlab_profile_image_url';
   static const String _keyAttendanceData = 'etlab_attendance_data';
   static const String _keyTeachersData = 'etlab_teachers_data';
   static const String _keyTeachersFetchedAt = 'etlab_teachers_fetched_at';
@@ -19,6 +25,10 @@ class EtlabDataStore {
   static const Duration teachersCacheTtl = Duration(days: 14);
 
   Map<String, dynamic>? _profileData;
+  String? _profileImagePath;
+  String? _profileImageUrl;
+  final ValueNotifier<String?> profileImageNotifier = ValueNotifier<String?>(null);
+
   Map<String, dynamic>? _attendanceData;
   Map<String, dynamic>? _teachersData;
   DateTime? _teachersFetchedAt;
@@ -26,6 +36,7 @@ class EtlabDataStore {
   final Map<String, Map<String, dynamic>> _monthMemoryCache = {};
 
   Map<String, dynamic>? get profileData => _profileData;
+  String? get profileImagePath => _profileImagePath;
   Map<String, dynamic>? get attendanceData => _attendanceData;
   Map<String, dynamic>? get teachersData => _teachersData;
   DateTime? get teachersFetchedAt => _teachersFetchedAt;
@@ -44,6 +55,18 @@ class EtlabDataStore {
       final profileJson = prefs.getString(_keyProfileData);
       if (profileJson != null && profileJson.isNotEmpty) {
         _profileData = jsonDecode(profileJson) as Map<String, dynamic>?;
+      }
+
+      _profileImagePath = prefs.getString(_keyProfileImagePath);
+      _profileImageUrl = prefs.getString(_keyProfileImageUrl);
+      if (_profileImagePath != null) {
+        final file = File(_profileImagePath!);
+        if (file.existsSync()) {
+          profileImageNotifier.value = _profileImagePath;
+        } else {
+          _profileImagePath = null;
+          profileImageNotifier.value = null;
+        }
       }
 
       final attendanceJson = prefs.getString(_keyAttendanceData);
@@ -66,12 +89,93 @@ class EtlabDataStore {
       }
 
       await _preloadCalendarCache();
+
+      // If we have profile data with image URL but haven't cached it locally, cache it
+      final currentUrl = _profileData?['url']?.toString();
+      if (currentUrl != null && currentUrl.startsWith('http') && _profileImagePath == null) {
+        unawaited(cacheProfileImage(currentUrl));
+      }
     } catch (e) {
       debugPrint('[EtlabDataStore] init error: $e');
     }
   }
 
-  /// Persists student profile data.
+  Future<Directory?> _getStorageDirectory() async {
+    try {
+      return await getApplicationDocumentsDirectory();
+    } catch (e) {
+      debugPrint('[EtlabDataStore] getApplicationDocumentsDirectory not available: $e');
+      return null;
+    }
+  }
+
+  /// Downloads and caches the profile image to local app storage.
+  Future<String?> cacheProfileImage(
+    String imageUrl, {
+    bool force = false,
+    http.Client? client,
+  }) async {
+    if (imageUrl.isEmpty || !imageUrl.startsWith('http')) return null;
+
+    final imageHash = imageUrl.hashCode.abs();
+    if (!force &&
+        _profileImageUrl == imageUrl &&
+        _profileImagePath != null &&
+        File(_profileImagePath!).existsSync()) {
+      return _profileImagePath;
+    }
+
+    try {
+      final dir = await _getStorageDirectory();
+      if (dir == null) return null;
+
+      final httpClient = client ?? http.Client();
+      try {
+        final uri = Uri.parse(imageUrl);
+        final response =
+            await httpClient.get(uri).timeout(const Duration(seconds: 15));
+
+        if (response.statusCode == 200 && response.bodyBytes.isNotEmpty) {
+          final targetFile = File('${dir.path}/profile_image_$imageHash.jpg');
+
+          // Clean up older cached profile images
+          try {
+            final oldFiles = dir
+                .listSync()
+                .whereType<File>()
+                .where((f) => f.path.contains('profile_image_'));
+            for (final oldFile in oldFiles) {
+              if (oldFile.path != targetFile.path) {
+                await oldFile.delete();
+              }
+            }
+          } catch (_) {}
+
+          await targetFile.writeAsBytes(response.bodyBytes, flush: true);
+
+          _profileImagePath = targetFile.path;
+          _profileImageUrl = imageUrl;
+          profileImageNotifier.value = targetFile.path;
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_keyProfileImagePath, targetFile.path);
+          await prefs.setString(_keyProfileImageUrl, imageUrl);
+
+          debugPrint('[EtlabDataStore] Profile image saved to storage: ${targetFile.path}');
+          return targetFile.path;
+        }
+      } finally {
+        if (client == null) {
+          httpClient.close();
+        }
+      }
+    } catch (e) {
+      debugPrint('[EtlabDataStore] cacheProfileImage error: $e');
+    }
+    return null;
+  }
+
+  /// Persists student profile data and caches the profile image.
   Future<void> saveProfile(Map<String, dynamic> data) async {
     _profileData = data;
     try {
@@ -79,6 +183,11 @@ class EtlabDataStore {
       await prefs.setString(_keyProfileData, jsonEncode(data));
     } catch (e) {
       debugPrint('[EtlabDataStore] saveProfile error: $e');
+    }
+
+    final imageUrl = data['url']?.toString();
+    if (imageUrl != null && imageUrl.startsWith('http')) {
+      unawaited(cacheProfileImage(imageUrl));
     }
   }
 
@@ -343,8 +452,31 @@ class EtlabDataStore {
     _monthMemoryCache.clear();
 
     try {
+      final dir = await _getStorageDirectory();
+      if (dir != null) {
+        final oldFiles = dir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.contains('profile_image_'));
+        for (final f in oldFiles) {
+          try {
+            await f.delete();
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      debugPrint('[EtlabDataStore] Error deleting profile image files: $e');
+    }
+
+    _profileImagePath = null;
+    _profileImageUrl = null;
+    profileImageNotifier.value = null;
+
+    try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_keyProfileData);
+      await prefs.remove(_keyProfileImagePath);
+      await prefs.remove(_keyProfileImageUrl);
       await prefs.remove(_keyAttendanceData);
       await prefs.remove(_keyTeachersData);
       await prefs.remove(_keyTeachersFetchedAt);

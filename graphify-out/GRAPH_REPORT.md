@@ -1,16 +1,16 @@
 # Graph Report - Sterlin  (2026-09-07)
 
 ## Corpus Check
-- 74 files · ~120,857 words
+- 76 files · ~121,681 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1108 nodes · 1459 edges · 53 communities (40 shown, 9 thin omitted)
+- 1138 nodes · 1501 edges · 57 communities (44 shown, 9 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 18 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `0934345a`
+- Built from commit: `515e50e3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -21,7 +21,7 @@
 - Flutter iOS Platform Plugins
 - login_screen.dart
 - Month Calendar View
-- Local Notifications Service
+- notifications_service.dart
 - Theme & Styling Service
 - Attendance Models & Calculation
 - app_logger_service.dart
@@ -34,14 +34,14 @@
 - Android Native Bridge
 - dashboard_screen.dart
 - Etlab Profile & Models
-- main.dart
+- desktop_tray_service.dart
 - animated_nav_icons.dart
 - Android Timetable AppWidget
 - etlab_api_client.dart
 - _SettingsScreenState
 - page_header.dart
 - State
-- Profile Screen UI
+- etlab_data_store.dart
 - Calendar Bottom Sheets
 - Absence Detail Tracking
 - package:flutter/material.dart
@@ -60,10 +60,14 @@
 - Dart Nullable Primitives
 - Canvas Geometry Types
 - Core String Types
-- package:shared_preferences/shared_preferences.dart
-- theme_switch_test.dart
+- main.dart
+- notifications_screen.dart
+- profile_avatar.dart
+- results_screen.dart
 - _HoleHitBlocker
 - _RenderHoleHitBlocker
+- MaterialPageRoute
+- DesktopTrayService
 
 ## God Nodes (most connected - your core abstractions)
 1. `Win32Window` - 24 edges
@@ -92,7 +96,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (53 total, 9 thin omitted)
+## Communities (57 total, 9 thin omitted)
 
 ### Community 0 - "navigation_tutorial.dart"
 Cohesion: 0.03
@@ -104,23 +108,23 @@ Nodes (57): PluginRegistry, unique_ptr, RegisterPlugins(), DartProject, HWND, LP
 
 ### Community 2 - "etlab_api_service.dart"
 Cohesion: 0.04
-Nodes (46): background_service.dart, etlab/etlab_api_client.dart, etlab/etlab_data_store.dart, etlab/user_session_store.dart, EtlabApiClient get, EtlabDataStore get, home_widget_service.dart, accessToken (+38 more)
+Nodes (49): background_service.dart, etlab/etlab_api_client.dart, etlab/etlab_data_store.dart, etlab/user_session_store.dart, EtlabApiClient get, EtlabDataStore get, home_widget_service.dart, accessToken (+41 more)
 
 ### Community 3 - "Flutter iOS Platform Plugins"
 Cohesion: 0.05
 Nodes (34): Any, Cocoa, dynamic_color, Flutter, flutter_local_notifications, flutter_secure_storage_darwin, FlutterAppDelegate, FlutterImplicitEngineBridge (+26 more)
 
 ### Community 4 - "login_screen.dart"
-Cohesion: 0.05
-Nodes (42): FormState, _a, build, _c, child, createState, dispose, _errorMessage (+34 more)
+Cohesion: 0.07
+Nodes (27): FormState, _a, build, _c, child, createState, dispose, _errorMessage (+19 more)
 
 ### Community 5 - "Month Calendar View"
 Cohesion: 0.05
 Nodes (43): boundary, build, _changeMonth, _clearHighlight, color, createState, danger, dangerContainer (+35 more)
 
-### Community 6 - "Local Notifications Service"
-Cohesion: 0.04
-Nodes (45): AndroidFlutterLocalNotificationsPlugin, FlutterLocalNotificationsPlugin, IOSFlutterLocalNotificationsPlugin, build, areNotificationsEnabled, areNotificationsEnabledInPrefs, checkAndOpenPendingNotification, clearNotificationsData (+37 more)
+### Community 6 - "notifications_service.dart"
+Cohesion: 0.05
+Nodes (40): AndroidFlutterLocalNotificationsPlugin, FlutterLocalNotificationsPlugin, IOSFlutterLocalNotificationsPlugin, areNotificationsEnabled, areNotificationsEnabledInPrefs, clearNotificationsData, consumePendingOpen, _flutterLocalNotificationsPlugin (+32 more)
 
 ### Community 7 - "Theme & Styling Service"
 Cohesion: 0.05
@@ -131,8 +135,8 @@ Cohesion: 0.06
 Nodes (35): etlab_models.dart, int get, AttendanceStatus, calculatePercentage, calculateSafeSkips, classesAbsent, classesAttended, classesOnDutyLeave (+27 more)
 
 ### Community 9 - "app_logger_service.dart"
-Cohesion: 0.06
-Nodes (31): _addEntry, AppLoggerService, category, clearLogs, formatTimestamp, fromJson, _hookDebugPrint, init (+23 more)
+Cohesion: 0.04
+Nodes (45): DateTime?, int?, AttendanceScreen, _AttendanceScreenState, build, _buildSubjectwiseTab, createState, _currentSemesterLabel (+37 more)
 
 ### Community 10 - "floating_pill_nav_bar.dart"
 Cohesion: 0.06
@@ -170,9 +174,9 @@ Nodes (23): _activeWidgets, _attendance, build, _buildDashboardWidget, _checkAnd
 Cohesion: 0.09
 Nodes (22): attended, code, email, EtlabProfile, EtlabSubjectAttendance, EtlabTeacher, EtlabTeachersData, EtlabTimetableItem (+14 more)
 
-### Community 19 - "main.dart"
-Cohesion: 0.05
-Nodes (41): @pragma, dart:io, Future, build, callbackDispatcher, createState, init, initState (+33 more)
+### Community 19 - "desktop_tray_service.dart"
+Cohesion: 0.10
+Nodes (20): dispose, init, _initialized, _instance, _keyQuit, _keyToggleWindow, onTrayIconMouseDown, onTrayIconRightMouseDown (+12 more)
 
 ### Community 20 - "animated_nav_icons.dart"
 Cohesion: 0.11
@@ -183,8 +187,8 @@ Cohesion: 0.16
 Nodes (6): Intent, RemoteViews, TimetableViewsFactory, TimetableWidgetService, RemoteViewsFactory, RemoteViewsService
 
 ### Community 22 - "etlab_api_client.dart"
-Cohesion: 0.14
-Nodes (13): Client, dart:async, buildAuthHeaders, buildBaseUrl, EtlabApiClient, fetchAttendanceByDayPeriod, fetchAttendanceBySubject, fetchProfile (+5 more)
+Cohesion: 0.13
+Nodes (14): Client, dart:async, dart:convert, buildAuthHeaders, buildBaseUrl, EtlabApiClient, fetchAttendanceByDayPeriod, fetchAttendanceBySubject (+6 more)
 
 ### Community 23 - "_SettingsScreenState"
 Cohesion: 0.67
@@ -195,12 +199,12 @@ Cohesion: 0.12
 Nodes (16): EdgeInsetsGeometry, IconData, Key?, actionKey, actions, eyebrow, icon, implyBackButton (+8 more)
 
 ### Community 25 - "State"
-Cohesion: 0.06
-Nodes (47): DateTime?, int?, AIPApp, _AIPAppState, AttendanceScreen, _AttendanceScreenState, build, _buildSubjectwiseTab (+39 more)
+Cohesion: 0.15
+Nodes (23): AIPApp, _AIPAppState, _Entrance, _EntranceState, MainNavigationShell, MainNavigationShellState, AnimatedNavIcon, _AnimatedNavIconState (+15 more)
 
-### Community 26 - "Profile Screen UI"
-Cohesion: 0.06
-Nodes (33): DateTime? get, _attendanceData, cacheMonthAttendance, clearAllData, EtlabDataStore, getAllArchivedCalendarData, getCachedDayData, getCachedMonthAttendance (+25 more)
+### Community 26 - "etlab_data_store.dart"
+Cohesion: 0.05
+Nodes (42): DateTime? get, File, _attendanceData, cacheMonthAttendance, cacheProfileImage, clearAllData, EtlabDataStore, getAllArchivedCalendarData (+34 more)
 
 ### Community 27 - "Calendar Bottom Sheets"
 Cohesion: 0.08
@@ -211,8 +215,8 @@ Cohesion: 0.15
 Nodes (12): AbsenceDetail, date, dayName, formattedDate, hour, key, rawSubject, resolve (+4 more)
 
 ### Community 29 - "package:flutter/material.dart"
-Cohesion: 0.22
-Nodes (8): package:flutter/material.dart, package:sterlin/screens/login_screen.dart, package:sterlin/screens/main_navigation_shell.dart, package:sterlin/screens/results_screen.dart, package:sterlin/screens/syllabus_screen.dart, package:sterlin/services/theme_service.dart, main, main
+Cohesion: 0.11
+Nodes (21): package:flutter/material.dart, package:flutter_test/flutter_test.dart, package:shared_preferences/shared_preferences.dart, package:sterlin/screens/login_screen.dart, package:sterlin/screens/main_navigation_shell.dart, package:sterlin/screens/results_screen.dart, package:sterlin/screens/syllabus_screen.dart, package:sterlin/services/etlab/etlab_data_store.dart (+13 more)
 
 ### Community 30 - "Background Fetch & Periodic Sync"
 Cohesion: 0.17
@@ -223,16 +227,16 @@ Cohesion: 0.24
 Nodes (9): _In_, _In_opt_, vector, wWinMain(), string, wchar_t, CreateAndAttachConsole(), GetCommandLineArguments() (+1 more)
 
 ### Community 32 - "profile_screen.dart"
-Cohesion: 0.14
-Nodes (13): _detailLabels, _DetailRow, _formatValue, _initial, _initialAvatar, label, ProfileAvatarAction, ProfileScreen (+5 more)
+Cohesion: 0.15
+Nodes (12): build, _detailLabels, _DetailRow, _formatValue, label, ProfileScreen, _showLogoutDialog, value (+4 more)
 
 ### Community 33 - "Web App Manifest"
 Cohesion: 0.18
 Nodes (10): background_color, description, display, icons, name, orientation, prefer_related_applications, short_name (+2 more)
 
 ### Community 34 - "package:flutter/foundation.dart"
-Cohesion: 0.20
-Nodes (9): dart:convert, clearWidgetData, HomeWidgetService, _providerName, _sessionToMap, updateHomeScreenWidget, ../models/dashboard_data.dart, package:flutter/foundation.dart (+1 more)
+Cohesion: 0.22
+Nodes (8): clearWidgetData, HomeWidgetService, _providerName, _sessionToMap, updateHomeScreenWidget, ../models/dashboard_data.dart, package:flutter/foundation.dart, package:home_widget/home_widget.dart
 
 ### Community 35 - "safeword_service.dart"
 Cohesion: 0.22
@@ -243,36 +247,52 @@ Cohesion: 0.15
 Nodes (12): Animation, AnimationController, Color, _animation, backgroundColor, build, _controller, createState (+4 more)
 
 ### Community 37 - "StatelessWidget"
-Cohesion: 0.20
-Nodes (10): _AttendanceCard, _DaySheet, _HolidayCard, _MonthStat, _PeriodRow, HeaderAction, NotificationBellAction, PageHeader (+2 more)
+Cohesion: 0.17
+Nodes (12): _AttendanceCard, _DaySheet, _HolidayCard, _MonthStat, _PeriodRow, HeaderAction, NotificationBellAction, PageHeader (+4 more)
 
-### Community 49 - "package:shared_preferences/shared_preferences.dart"
-Cohesion: 0.29
-Nodes (6): package:flutter_test/flutter_test.dart, package:shared_preferences/shared_preferences.dart, package:sterlin/services/etlab/etlab_data_store.dart, package:sterlin/services/etlab/user_session_store.dart, main, main
+### Community 49 - "main.dart"
+Cohesion: 0.11
+Nodes (17): @pragma, Future, build, callbackDispatcher, createState, init, initState, load (+9 more)
 
-### Community 50 - "theme_switch_test.dart"
-Cohesion: 0.33
-Nodes (5): build, main, _Probe, _wrap, Text
+### Community 50 - "notifications_screen.dart"
+Cohesion: 0.13
+Nodes (15): build, createState, initState, _isLoading, _loadNotifications, _markAllDone, _markDone, _newAbsences (+7 more)
+
+### Community 51 - "profile_avatar.dart"
+Cohesion: 0.13
+Nodes (14): dart:io, backgroundColor, borderColor, borderWidth, _buildInitials, imageUrl, localImagePath, name (+6 more)
+
+### Community 52 - "results_screen.dart"
+Cohesion: 0.21
+Nodes (10): build, createState, ResultsScreen, _ResultsScreenState, build, createState, SyllabusScreen, _SyllabusScreenState (+2 more)
+
+### Community 55 - "MaterialPageRoute"
+Cohesion: 0.40
+Nodes (5): checkAndOpenPendingNotification, openNotificationsPanel, build, build, MaterialPageRoute
+
+### Community 56 - "DesktopTrayService"
+Cohesion: 0.67
+Nodes (3): DesktopTrayService, TrayListener, WindowListener
 
 ## Knowledge Gaps
-- **660 isolated node(s):** `build_and_install.sh script`, `_sessionFuture`, `main`, `init`, `load` (+655 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 804 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **680 isolated node(s):** `build_and_install.sh script`, `_sessionFuture`, `main`, `init`, `load` (+675 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 828 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **9 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `_SettingsScreenState` connect `_SettingsScreenState` to `State`, `settings_screen.dart`?**
-  _High betweenness centrality (0.009) - this node is a cross-community bridge._
-- **Why does `_SpotlightPainter` connect `Spotlight Painting Canvas` to `navigation_tutorial.dart`?**
-  _High betweenness centrality (0.009) - this node is a cross-community bridge._
+- **Why does `FlutterWindow` connect `Windows Plugin Registration` to `Flutter iOS Platform Plugins`?**
+  _High betweenness centrality (0.007) - this node is a cross-community bridge._
 - **What connects `build_and_install.sh script`, `_sessionFuture`, `main` to the rest of the system?**
-  _660 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _680 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `navigation_tutorial.dart` be split into smaller, more focused modules?**
   _Cohesion score 0.02531645569620253 - nodes in this community are weakly interconnected._
 - **Should `Windows Plugin Registration` be split into smaller, more focused modules?**
   _Cohesion score 0.05311676909569798 - nodes in this community are weakly interconnected._
 - **Should `etlab_api_service.dart` be split into smaller, more focused modules?**
-  _Cohesion score 0.0425531914893617 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.04 - nodes in this community are weakly interconnected._
 - **Should `Flutter iOS Platform Plugins` be split into smaller, more focused modules?**
   _Cohesion score 0.04964539007092199 - nodes in this community are weakly interconnected._
+- **Should `login_screen.dart` be split into smaller, more focused modules?**
+  _Cohesion score 0.07407407407407407 - nodes in this community are weakly interconnected._

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/etlab_api_service.dart';
 import '../widgets/page_header.dart';
+import '../widgets/profile_avatar.dart';
 import 'login_screen.dart';
+
+export '../widgets/profile_avatar.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -64,7 +67,6 @@ class ProfileScreen extends StatelessWidget {
         '';
     final sem = profile['curnt_sem']?.toString() ?? '';
     final photoUrl = profile['url']?.toString();
-    final hasPhoto = photoUrl != null && photoUrl.startsWith('http');
 
     final byLowerKey = {
       for (final e in profile.entries) e.key.toLowerCase(): e.value,
@@ -97,26 +99,13 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   Column(
                     children: [
-                      Container(
-                        width: 108,
-                        height: 108,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: theme.colorScheme.primaryContainer,
-                          border: Border.all(
-                            color: theme.colorScheme.primary,
-                            width: 2,
-                          ),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: hasPhoto
-                            ? Image.network(
-                                photoUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) =>
-                                    _initialAvatar(theme, name),
-                              )
-                            : _initialAvatar(theme, name),
+                      ProfileAvatar(
+                        size: 108,
+                        name: name,
+                        imageUrl: photoUrl,
+                        showBorder: true,
+                        borderColor: theme.colorScheme.primary,
+                        borderWidth: 2,
                       ),
                       const SizedBox(height: 12),
                       Text(
@@ -230,18 +219,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _initialAvatar(ThemeData theme, String name) {
-    return Center(
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : 'S',
-        style: TextStyle(
-          fontSize: 40,
-          color: theme.colorScheme.onPrimaryContainer,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
@@ -324,62 +301,6 @@ class _DetailRow extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class ProfileAvatarAction extends StatelessWidget {
-  const ProfileAvatarAction({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final profile = EtlabApiService().profileData;
-    final url = profile?['url']?.toString() ?? '';
-    final name = profile?['name']?.toString() ?? '';
-    final hasPhoto = url.startsWith('http');
-
-    return Tooltip(
-      message: 'Profile',
-      child: Material(
-        color: theme.colorScheme.surfaceContainerLow,
-        shape: CircleBorder(
-          side: BorderSide(color: theme.colorScheme.outlineVariant),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfileScreen()),
-            );
-          },
-          child: SizedBox(
-            width: 42,
-            height: 42,
-            child: hasPhoto
-                ? Image.network(
-                    url,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => _initial(theme, name),
-                  )
-                : _initial(theme, name),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _initial(ThemeData theme, String name) {
-    return Center(
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : 'S',
-        style: TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.bold,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
       ),
     );
   }

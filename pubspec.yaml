@@ -41,6 +41,7 @@ dependencies:
   dynamic_color: ^1.7.1
   tray_manager: ^0.5.3
   window_manager: ^0.5.2
+  path_provider: ^2.1.6
 dev_dependencies:
   flutter_test:
     sdk: flutter

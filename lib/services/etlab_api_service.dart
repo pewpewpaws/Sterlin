@@ -32,6 +32,8 @@ class EtlabApiService {
   String get subdomain => _sessionStore.subdomain;
   String? get accessToken => _sessionStore.accessToken;
   Map<String, dynamic>? get profileData => _dataStore.profileData;
+  String? get profileImagePath => _dataStore.profileImagePath;
+  ValueNotifier<String?> get profileImageNotifier => _dataStore.profileImageNotifier;
   Map<String, dynamic>? get attendanceData => _dataStore.attendanceData;
   Map<String, dynamic>? get teachersData => _dataStore.teachersData;
 
@@ -39,6 +41,12 @@ class EtlabApiService {
   bool get teachersCacheFresh => _dataStore.teachersCacheFresh;
   List<dynamic>? get semesterListData => _dataStore.semesterListData;
   double get targetAttendancePct => _sessionStore.targetAttendancePct;
+
+  Future<String?> cacheProfileImage({String? url, bool force = false}) =>
+      _dataStore.cacheProfileImage(
+        url ?? _dataStore.profileData?['url']?.toString() ?? '',
+        force: force,
+      );
 
   String get baseUrl => EtlabApiClient.buildBaseUrl(_sessionStore.subdomain);
 

@@ -132,10 +132,10 @@
     "semantic_hash": ""
   },
   "lib/screens/profile_screen.dart": {
-    "mtime": 1788468051.031397,
-    "seen": 1788502225.4827557,
-    "ast_hash": "ddcaa8b1ab8020546fd81bbf4692a332",
-    "semantic_hash": "ddcaa8b1ab8020546fd81bbf4692a332"
+    "mtime": 1788761984.6106317,
+    "seen": 1788762096.731721,
+    "ast_hash": "186c893ec275ef6218b1cd84b8a549ec",
+    "semantic_hash": ""
   },
   "lib/screens/settings_screen.dart": {
     "mtime": 1788759630.9285223,
@@ -162,9 +162,9 @@
     "semantic_hash": "032e70200ffb6245cf9d253f1e2fc5cc"
   },
   "lib/services/etlab_api_service.dart": {
-    "mtime": 1788502655.966328,
-    "seen": 1788502748.6831648,
-    "ast_hash": "ffa20749e5c20123b3752ce3813b0ac3",
+    "mtime": 1788761879.1979792,
+    "seen": 1788762096.731749,
+    "ast_hash": "dd81f8bbe08e978afb7e561b4bec8908",
     "semantic_hash": ""
   },
   "lib/services/home_widget_service.dart": {
@@ -378,15 +378,15 @@
     "semantic_hash": "5a4cf051798d7e6931ee0405a4523c8f"
   },
   "lib/services/etlab/etlab_api_client.dart": {
-    "mtime": 1788502639.691412,
-    "seen": 1788502748.6831594,
+    "mtime": 1788761649.1916058,
+    "seen": 1788762096.7317412,
     "ast_hash": "3d812b982622efb672986e081459222d",
     "semantic_hash": ""
   },
   "lib/services/etlab/etlab_data_store.dart": {
-    "mtime": 1788502627.495471,
-    "seen": 1788502748.683162,
-    "ast_hash": "2256490e094e3fa41bf00f6f380273b3",
+    "mtime": 1788761974.4304729,
+    "seen": 1788762096.731744,
+    "ast_hash": "aac6d97c5a33383225b6f97c0539c0f7",
     "semantic_hash": ""
   },
   "lib/services/etlab/user_session_store.dart": {
@@ -456,9 +456,9 @@
     "semantic_hash": ""
   },
   "pubspec.yaml": {
-    "mtime": 1788473774.011233,
-    "seen": 1788502748.683226,
-    "ast_hash": "f4ec9ed91a839eb320ba4a411b367475",
+    "mtime": 1788761365.4032059,
+    "seen": 1788762096.7318776,
+    "ast_hash": "f7bac755359bf146c8fbebed5eed3eaa",
     "semantic_hash": ""
   },
   "web/index.html": {
@@ -801,6 +801,18 @@
     "mtime": 1788759497.5496008,
     "seen": 1788760485.8915792,
     "ast_hash": "1aacb89c6b03c64ed52157a852c523ff",
+    "semantic_hash": ""
+  },
+  "lib/widgets/profile_avatar.dart": {
+    "mtime": 1788761997.1608272,
+    "seen": 1788762096.731781,
+    "ast_hash": "64693469bf70fac9a0b1a7272ac590bd",
+    "semantic_hash": ""
+  },
+  "test/profile_avatar_test.dart": {
+    "mtime": 1788762043.1945422,
+    "seen": 1788762096.7318175,
+    "ast_hash": "3a8bda03bd0c5d2454583c63a8ad4a9d",
     "semantic_hash": ""
   }
 }
