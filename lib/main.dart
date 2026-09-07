@@ -77,10 +77,21 @@ void main() async {
   runApp(const AIPApp());
 }
 
-class AIPApp extends StatelessWidget {
+class AIPApp extends StatefulWidget {
   const AIPApp({super.key});
 
-  static final Future<bool> _sessionFuture = EtlabApiService().initSession();
+  @override
+  State<AIPApp> createState() => _AIPAppState();
+}
+
+class _AIPAppState extends State<AIPApp> {
+  late Future<bool> _sessionFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionFuture = EtlabApiService().initSession();
+  }
 
   @override
   Widget build(BuildContext context) {

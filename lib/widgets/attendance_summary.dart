@@ -276,7 +276,7 @@ class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.colorScheme.primary.withAlpha(100)),
+                      border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.392)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -390,7 +390,7 @@ class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.colorScheme.outlineVariant.withAlpha(100)),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.392)),
       ),
       child: Row(
         children: [
@@ -403,12 +403,17 @@ class _AttendanceSummaryWidgetState extends State<AttendanceSummaryWidget> {
                 SizedBox(
                   width: 64,
                   height: 64,
-                  child: CircularProgressIndicator(
-                    value: pct.clamp(0.0, 1.0),
-                    strokeWidth: 6,
-                    strokeCap: StrokeCap.round,
-                    color: statusColor,
-                    backgroundColor: theme.colorScheme.outlineVariant.withAlpha(60),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0.0, end: pct.clamp(0.0, 1.0)),
+                    duration: const Duration(milliseconds: 1000),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, _) => CircularProgressIndicator(
+                      value: value,
+                      strokeWidth: 6,
+                      strokeCap: StrokeCap.round,
+                      color: statusColor,
+                      backgroundColor: theme.colorScheme.outlineVariant.withValues(alpha: 0.235),
+                    ),
                   ),
                 ),
                 Text(
@@ -525,14 +530,14 @@ class _AttendanceCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       elevation: highlighted ? 2 : 0,
       color: highlighted
-          ? theme.colorScheme.primaryContainer.withAlpha(50)
+          ? theme.colorScheme.primaryContainer.withValues(alpha: 0.196)
           : theme.colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
           color: highlighted
               ? theme.colorScheme.primary
-              : theme.colorScheme.outlineVariant.withAlpha(100),
+              : theme.colorScheme.outlineVariant.withValues(alpha: 0.392),
           width: highlighted ? 1.8 : 1,
         ),
       ),
@@ -574,7 +579,7 @@ class _AttendanceCard extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   color: theme
                                       .colorScheme.surfaceContainerHighest
-                                      .withAlpha(140),
+                                      .withValues(alpha: 0.549),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
@@ -607,7 +612,7 @@ class _AttendanceCard extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: isDark
-                                      ? const Color(0xFF713F12).withAlpha(150)
+                                      ? const Color(0xFF713F12).withValues(alpha: 0.588)
                                       : const Color(0xFFFEF08A),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
@@ -677,12 +682,18 @@ class _AttendanceCard extends StatelessWidget {
                       Container(
                         height: 4,
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.outlineVariant.withAlpha(70),
+                          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.275),
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      FractionallySizedBox(
-                        widthFactor: pct.clamp(0.0, 1.0),
+                      TweenAnimationBuilder<double>(
+                        tween: Tween<double>(begin: 0.0, end: pct.clamp(0.0, 1.0)),
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, child) => FractionallySizedBox(
+                          widthFactor: value,
+                          child: child,
+                        ),
                         child: Container(
                           height: 4,
                           decoration: BoxDecoration(
@@ -698,7 +709,7 @@ class _AttendanceCard extends StatelessWidget {
                           width: 2,
                           height: 8,
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.onSurfaceVariant.withAlpha(160),
+                            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.627),
                             borderRadius: BorderRadius.circular(1),
                           ),
                         ),

@@ -91,7 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         final theme = Theme.of(context);
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
           ),
           icon: Icon(
             Icons.logout_rounded,
@@ -137,7 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       builder: (dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
           ),
           title: const Text('Dev Options'),
           content: Column(
@@ -266,7 +266,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     height: 4,
                     margin: const EdgeInsets.only(bottom: 16),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.onSurfaceVariant.withAlpha(80),
+                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.314),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -331,24 +331,24 @@ class _SettingsScreenState extends State<SettingsScreen>
                 decoration: BoxDecoration(
                   color: isUnrestricted
                       ? (isDark
-                          ? const Color(0xFF14532D).withAlpha(120)
+                          ? const Color(0xFF14532D).withValues(alpha: 0.471)
                           : const Color(0xFFDCFCE7))
                       : (isRestricted
                           ? (isDark
-                              ? const Color(0xFF7F1D1D).withAlpha(120)
+                              ? const Color(0xFF7F1D1D).withValues(alpha: 0.471)
                               : const Color(0xFFFEE2E2))
                           : theme.colorScheme.surfaceContainerHigh),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isUnrestricted
                         ? (isDark
-                            ? const Color(0xFF4ADE80).withAlpha(120)
+                            ? const Color(0xFF4ADE80).withValues(alpha: 0.471)
                             : const Color(0xFF86EFAC))
                         : (isRestricted
                             ? (isDark
-                                ? const Color(0xFFF87171).withAlpha(120)
+                                ? const Color(0xFFF87171).withValues(alpha: 0.471)
                                 : const Color(0xFFFCA5A5))
-                            : theme.colorScheme.outlineVariant.withAlpha(80)),
+                            : theme.colorScheme.outlineVariant.withValues(alpha: 0.314)),
                   ),
                 ),
                 child: Row(
@@ -506,7 +506,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         context: context,
         isScrollControlled: true,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         builder: (sheetContext) => StatefulBuilder(
           builder: (ctx, setSheetState) => buildSheet(ctx, setSheetState),
@@ -858,7 +858,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                                 isScrollControlled: true,
                                 shape: const RoundedRectangleBorder(
                                   borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(20),
+                                    top: Radius.circular(24),
                                   ),
                                 ),
                                 builder: (sheetContext) {
@@ -889,7 +889,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                                                 color: theme
                                                     .colorScheme
                                                     .onSurfaceVariant
-                                                    .withAlpha(80),
+                                                    .withValues(alpha: 0.314),
                                                 borderRadius:
                                                     BorderRadius.circular(2),
                                               ),
@@ -941,14 +941,14 @@ class _SettingsScreenState extends State<SettingsScreen>
                                                       : theme
                                                             .colorScheme
                                                             .outlineVariant
-                                                            .withAlpha(120),
+                                                            .withValues(alpha: 0.471),
                                                   width: isDynamic ? 2 : 1,
                                                 ),
                                                 color: isDynamic
                                                     ? theme
                                                           .colorScheme
                                                           .primaryContainer
-                                                          .withAlpha(60)
+                                                          .withValues(alpha: 0.235)
                                                     : theme
                                                           .colorScheme
                                                           .surfaceContainerLow,
@@ -1141,7 +1141,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                       side: BorderSide(
-                        color: theme.colorScheme.outlineVariant.withAlpha(100),
+                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.392),
                       ),
                     ),
                     child: Padding(
@@ -1314,7 +1314,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                       side: BorderSide(
-                        color: theme.colorScheme.outlineVariant.withAlpha(100),
+                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.392),
                       ),
                     ),
                     child: Padding(
@@ -1330,7 +1330,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                             leading: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.errorContainer.withAlpha(120),
+                                color: theme.colorScheme.errorContainer.withValues(alpha: 0.471),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -1397,7 +1397,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                       side: BorderSide(
-                        color: theme.colorScheme.outlineVariant.withAlpha(100),
+                        color: theme.colorScheme.outlineVariant.withValues(alpha: 0.392),
                       ),
                     ),
                     child: Padding(

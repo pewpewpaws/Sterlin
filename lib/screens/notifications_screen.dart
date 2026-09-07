@@ -79,25 +79,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     return Scaffold(
       body: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            PageHeader(
-              title: 'Notifications',
-              actions: [
-                if (_newAbsences.isNotEmpty)
-                  TextButton.icon(
-                    onPressed: _markAllDone,
-                    icon: const Icon(Icons.done_all_rounded, size: 18),
-                    label: const Text('Clear All'),
-                  ),
-              ],
-            ),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _newAbsences.isEmpty
-                  ? Center(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 900),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                PageHeader(
+                  title: 'Notifications',
+                  actions: [
+                    if (_newAbsences.isNotEmpty)
+                      TextButton.icon(
+                        onPressed: _markAllDone,
+                        icon: const Icon(Icons.done_all_rounded, size: 18),
+                        label: const Text('Clear All'),
+                      ),
+                  ],
+                ),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : _newAbsences.isEmpty
+                      ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -367,6 +370,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ],
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }

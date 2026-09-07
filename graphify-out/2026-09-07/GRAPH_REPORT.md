@@ -1,4 +1,4 @@
-# Graph Report - Sterlin  (2026-09-07)
+# Graph Report - StudentPlanner  (2026-09-07)
 
 ## Corpus Check
 - 74 files · ~120,857 words

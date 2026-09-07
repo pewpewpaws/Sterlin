@@ -86,7 +86,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   Future<void> _checkAndPromptNotificationPermission() async {
     final notifService = NotificationsService();
     final hasPrompted = await notifService.hasPromptedPermission();
-    if (!hasPrompted && mounted) {
+    if (!hasPrompted) {
       await notifService.setPromptedPermission(true);
       if (!mounted) return;
       await showDialog(
@@ -219,70 +219,105 @@ class DashboardScreenState extends State<DashboardScreen> {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Customize Home Widgets',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Select and reorder widgets for your home dashboard:',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 16),
-                    Flexible(
-                      child: ReorderableListView(
-                        shrinkWrap: true,
-                        // ignore: deprecated_member_use
-                        onReorder: (oldIndex, newIndex) {
-                          setModalState(() {
-                            setState(() {
-                              if (oldIndex < newIndex) {
-                                newIndex -= 1;
-                              }
-                              final item = _widgetOrder.removeAt(oldIndex);
-                              _widgetOrder.insert(newIndex, item);
-                            });
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20.0,
+                20.0,
+                20.0,
+                20.0 + MediaQuery.paddingOf(context).bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Customize Home Widgets',
+                        style: Theme.of(context).textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Select and reorder widgets for your home dashboard:',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  Flexible(
+                    child: ReorderableListView(
+                      shrinkWrap: true,
+                      proxyDecorator: (child, index, animation) {
+                        return Material(
+                          elevation: 4,
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(16),
+                          child: child,
+                        );
+                      },
+                      // ignore: deprecated_member_use
+                      onReorder: (oldIndex, newIndex) {
+                        setModalState(() {
+                          setState(() {
+                            if (oldIndex < newIndex) {
+                              newIndex -= 1;
+                            }
+                            final item = _widgetOrder.removeAt(oldIndex);
+                            _widgetOrder.insert(newIndex, item);
                           });
-                        },
-                        children: _widgetOrder.map((widgetType) {
-                          final isEnabled = _activeWidgets.contains(widgetType);
-                          return CheckboxListTile(
-                            key: ValueKey(widgetType.toString()),
+                        });
+                      },
+                      children: _widgetOrder.map((widgetType) {
+                        final isEnabled = _activeWidgets.contains(widgetType);
+                        return Card(
+                          key: ValueKey(widgetType.toString()),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                          color: Theme.of(context).colorScheme.surfaceContainer,
+                          child: CheckboxListTile(
                             value: isEnabled,
                             controlAffinity: ListTileControlAffinity.leading,
                             title: Row(
                               children: [
-                                Icon(
-                                  widgetType.icon,
-                                  color: Theme.of(context).colorScheme.primary,
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context).colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    widgetType.icon,
+                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                    size: 20,
+                                  ),
                                 ),
                                 const SizedBox(width: 16),
-                                Expanded(child: Text(widgetType.title)),
+                                Expanded(
+                                  child: Text(
+                                    widgetType.title,
+                                    style: const TextStyle(fontWeight: FontWeight.w500),
+                                  ),
+                                ),
                               ],
                             ),
-                            secondary: const Icon(Icons.drag_handle),
+                            secondary: const Icon(Icons.drag_indicator),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                             onChanged: (bool? value) {
                               setModalState(() {
                                 setState(() {
@@ -294,20 +329,20 @@ class DashboardScreenState extends State<DashboardScreen> {
                                 });
                               });
                             },
-                          );
-                        }).toList(),
-                      ),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Done'),
-                      ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Done'),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           },

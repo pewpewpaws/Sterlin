@@ -61,6 +61,9 @@ class TimetableWidgetProvider : AppWidgetProvider() {
             var currentDay = -1
             var maxDays = 5
 
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            val todayStr = sdf.format(java.util.Date())
+
             for (name in prefNames) {
                 val p = context.getSharedPreferences(name, Context.MODE_PRIVATE)
                 
@@ -71,9 +74,12 @@ class TimetableWidgetProvider : AppWidgetProvider() {
                     }
                 }
 
-                if (p.contains("widget_selected_day") || p.contains("flutter.widget_selected_day")) {
-                    val value = p.all["widget_selected_day"] ?: p.all["flutter.widget_selected_day"]
-                    currentDay = (value as? Number)?.toInt() ?: -1
+                val savedDate = p.getString("widget_selected_date", "")
+                if (savedDate == todayStr) {
+                    if (p.contains("widget_selected_day") || p.contains("flutter.widget_selected_day")) {
+                        val value = p.all["widget_selected_day"] ?: p.all["flutter.widget_selected_day"]
+                        currentDay = (value as? Number)?.toInt() ?: -1
+                    }
                 }
             }
 
@@ -91,7 +97,10 @@ class TimetableWidgetProvider : AppWidgetProvider() {
 
             for (name in prefNames) {
                 val p = context.getSharedPreferences(name, Context.MODE_PRIVATE)
-                p.edit().putInt("widget_selected_day", newDay).apply()
+                p.edit()
+                 .putInt("widget_selected_day", newDay)
+                 .putString("widget_selected_date", todayStr)
+                 .apply()
             }
 
             updateAllWidgets(context)
@@ -123,6 +132,9 @@ class TimetableWidgetProvider : AppWidgetProvider() {
         var selectedDay = -1
         var maxDays = 5
 
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val todayStr = sdf.format(java.util.Date())
+
         for (name in prefNames) {
             val p = context.getSharedPreferences(name, Context.MODE_PRIVATE)
             if (maxDays == 5) {
@@ -131,9 +143,13 @@ class TimetableWidgetProvider : AppWidgetProvider() {
                     maxDays = value.toInt()
                 }
             }
-            if (p.contains("widget_selected_day") || p.contains("flutter.widget_selected_day")) {
-                val value = p.all["widget_selected_day"] ?: p.all["flutter.widget_selected_day"]
-                selectedDay = (value as? Number)?.toInt() ?: -1
+            
+            val savedDate = p.getString("widget_selected_date", "")
+            if (savedDate == todayStr) {
+                if (p.contains("widget_selected_day") || p.contains("flutter.widget_selected_day")) {
+                    val value = p.all["widget_selected_day"] ?: p.all["flutter.widget_selected_day"]
+                    selectedDay = (value as? Number)?.toInt() ?: -1
+                }
             }
         }
         if (selectedDay < 0 || selectedDay >= maxDays) {

@@ -223,60 +223,102 @@ class MainNavigationShellState extends State<MainNavigationShell>
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       ),
-      child: Scaffold(
-        body: Stack(
-          children: [
-            for (var i = 0; i < navItems.length; i++)
-              Offstage(
-                offstage: i != _currentIndex,
-                child: TickerMode(
-                  enabled: i == _currentIndex,
-                  child: i == _currentIndex
-                      ? FadeTransition(
-                          opacity: _swapFade,
-                          child: SlideTransition(
-                            position: _swapSlide,
-                            child: _getScreen(navItems[i].id),
-                          ),
-                        )
-                      : _getScreen(navItems[i].id),
-                ),
-              ),
-          ],
-        ),
-        bottomNavigationBar: isKeyboardOpen
-            ? null
-            : Container(
-                color: theme.colorScheme.surface,
-                child: SafeArea(
-                  top: false,
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 20),
-                    child: FloatingPillNavBar(
-                      key: NavigationTutorial.navBarKey,
-                      selectedIndex: _currentIndex,
-                      items: navItems,
-                      onDestinationSelected: (index) {
-                        if (index == _currentIndex) return;
-                        NavigationTutorial.reportTab(index);
-                        setState(() {
-                          _currentIndex = index;
-                          if (index >= 0 &&
-                              index < navItems.length &&
-                              navItems[index].id == 'attendance') {
-                            _attendanceKeyCounter++;
-                            _cachedScreens['attendance'] = AttendanceScreen(
-                              key: ValueKey('attendance_$_attendanceKeyCounter'),
-                            );
-                          }
-                        });
-                        _swapC.forward(from: 0);
-                      },
-                    ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth >= 800;
+
+          Widget bodyContent = Stack(
+            children: [
+              for (var i = 0; i < navItems.length; i++)
+                Offstage(
+                  offstage: i != _currentIndex,
+                  child: TickerMode(
+                    enabled: i == _currentIndex,
+                    child: i == _currentIndex
+                        ? FadeTransition(
+                            opacity: _swapFade,
+                            child: SlideTransition(
+                              position: _swapSlide,
+                              child: _getScreen(navItems[i].id),
+                            ),
+                          )
+                        : _getScreen(navItems[i].id),
                   ),
                 ),
+            ],
+          );
+
+          if (isDesktop) {
+            bodyContent = Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 900),
+                child: bodyContent,
               ),
+            );
+          }
+
+          void handleDestinationSelected(int index) {
+            if (index == _currentIndex) return;
+            NavigationTutorial.reportTab(index);
+            setState(() {
+              _currentIndex = index;
+              if (index >= 0 &&
+                  index < navItems.length &&
+                  navItems[index].id == 'attendance') {
+                _attendanceKeyCounter++;
+                _cachedScreens['attendance'] = AttendanceScreen(
+                  key: ValueKey('attendance_$_attendanceKeyCounter'),
+                );
+              }
+            });
+            _swapC.forward(from: 0);
+          }
+
+          if (isDesktop) {
+            return Scaffold(
+              body: Row(
+                children: [
+                  NavigationRail(
+                    selectedIndex: _currentIndex,
+                    onDestinationSelected: handleDestinationSelected,
+                    labelType: NavigationRailLabelType.all,
+                    destinations: navItems.map((item) {
+                      return NavigationRailDestination(
+                        icon: Icon(item.icon),
+                        selectedIcon: Icon(item.selectedIcon),
+                        label: Text(item.label),
+                      );
+                    }).toList(),
+                  ),
+                  const VerticalDivider(thickness: 1, width: 1),
+                  Expanded(child: bodyContent),
+                ],
+              ),
+            );
+          }
+
+          return Scaffold(
+            body: bodyContent,
+            bottomNavigationBar: isKeyboardOpen
+                ? null
+                : Container(
+                    color: theme.colorScheme.surface,
+                    child: SafeArea(
+                      top: false,
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: FloatingPillNavBar(
+                          key: NavigationTutorial.navBarKey,
+                          selectedIndex: _currentIndex,
+                          items: navItems,
+                          onDestinationSelected: handleDestinationSelected,
+                        ),
+                      ),
+                    ),
+                  ),
+          );
+        },
       ),
     );
   }

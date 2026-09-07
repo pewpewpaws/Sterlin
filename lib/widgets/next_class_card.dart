@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/dashboard_data.dart';
 import '../screens/main_navigation_shell.dart';
+import 'pulsing_badge.dart';
 
 class NextClassCardWidget extends StatelessWidget {
   final List<ClassSession> sessions;
@@ -57,7 +58,7 @@ class NextClassCardWidget extends StatelessWidget {
             color: theme.colorScheme.primaryContainer,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(100), width: 1),
+              side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4), width: 1),
             ),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
@@ -125,7 +126,7 @@ class NextClassCardWidget extends StatelessWidget {
           color: theme.colorScheme.primaryContainer,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: theme.colorScheme.outlineVariant.withAlpha(100), width: 1),
+            side: BorderSide(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4), width: 1),
           ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -194,7 +195,7 @@ class NextClassCardWidget extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: theme.colorScheme.outlineVariant.withAlpha(100),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
             width: 1,
           ),
         ),
@@ -219,25 +220,27 @@ class NextClassCardWidget extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isCurrent
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isCurrent ? 'CURRENT CLASS' : 'NEXT CLASS',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: isCurrent
-                              ? theme.colorScheme.onPrimary
-                              : theme.colorScheme.onSecondaryContainer,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ),
+                    isCurrent
+                        ? PulsingBadge(
+                            text: 'CURRENT CLASS',
+                            backgroundColor: theme.colorScheme.primary,
+                            textColor: theme.colorScheme.onPrimary,
+                          )
+                        : Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.secondaryContainer,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'NEXT CLASS',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSecondaryContainer,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ),
                     Text(
                       '${currentSession.start.format(context)} - ${currentSession.end.format(context)}',
                       style: theme.textTheme.bodyMedium?.copyWith(

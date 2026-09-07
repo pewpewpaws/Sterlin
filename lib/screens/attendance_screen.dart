@@ -182,31 +182,36 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       child: Scaffold(
         body: SafeArea(
           bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              PageHeader(
-                title: 'Attendance',
-                actions: [
-                  const NotificationBellAction(),
-                  const ProfileAvatarAction(),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  PageHeader(
+                    title: 'Attendance',
+                    actions: [
+                      const NotificationBellAction(),
+                      const ProfileAvatarAction(),
+                    ],
+                  ),
+                  const TabBar(
+                    tabs: [
+                      Tab(text: 'By Subject'),
+                      Tab(text: 'By Day'),
+                    ],
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      children: [
+                        _buildSubjectwiseTab(Theme.of(context)),
+                        MonthCalendar(targetDate: widget.targetDate),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-              const TabBar(
-                tabs: [
-                  Tab(text: 'By Subject'),
-                  Tab(text: 'By Day'),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _buildSubjectwiseTab(Theme.of(context)),
-                    MonthCalendar(targetDate: widget.targetDate),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
