@@ -51,6 +51,8 @@ app.*.map.json
 # Android
 .gradle/
 /android/.gradle/
+.kotlin/
+/android/.kotlin/
 /android/local.properties
 /android/key.properties
 /android/app/debug
