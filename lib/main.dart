@@ -66,12 +66,22 @@ void main() async {
       );
     } catch (_) {}
   }
-  if (!kIsWeb && (Platform.isLinux || Platform.isWindows)) {
+  if (!kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS)) {
     try {
       await windowManager.ensureInitialized();
+      const windowOptions = WindowOptions(
+        size: Size(1100, 750),
+        minimumSize: Size(800, 600),
+        center: true,
+        title: 'Sterlin',
+      );
+      await windowManager.waitUntilReadyToShow(windowOptions, () async {
+        await windowManager.show();
+        await windowManager.focus();
+      });
       await DesktopTrayService().init();
     } catch (e) {
-      debugPrint('[ERROR] Desktop tray init failed: $e');
+      debugPrint('[ERROR] Desktop window/tray init failed: $e');
     }
   }
   runApp(const AIPApp());

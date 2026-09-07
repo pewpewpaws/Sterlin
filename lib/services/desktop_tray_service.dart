@@ -27,10 +27,32 @@ class DesktopTrayService with TrayListener, WindowListener {
 
       trayManager.addListener(this);
 
-      // Set tray icon based on platform
-      final iconPath = Platform.isWindows
-          ? 'windows/runner/resources/app_icon.ico'
-          : 'assets/app_icon_monotone.png';
+      // Set tray icon based on platform with robust file resolution
+      String iconPath = 'assets/app_icon_monotone.png';
+      if (Platform.isWindows) {
+        final exeDir = File(Platform.resolvedExecutable).parent.path;
+        final assetIco = '$exeDir/data/flutter_assets/assets/app_icon.ico';
+        final devIco = 'windows/runner/resources/app_icon.ico';
+        final localAsset = 'assets/app_icon.ico';
+
+        if (File(assetIco).existsSync()) {
+          iconPath = File(assetIco).absolute.path;
+        } else if (File(devIco).existsSync()) {
+          iconPath = File(devIco).absolute.path;
+        } else if (File(localAsset).existsSync()) {
+          iconPath = File(localAsset).absolute.path;
+        } else {
+          iconPath = File(assetIco).absolute.path;
+        }
+      } else if (Platform.isLinux) {
+        final exeDir = File(Platform.resolvedExecutable).parent.path;
+        final assetPng = '$exeDir/data/flutter_assets/assets/app_icon_monotone.png';
+        if (File(assetPng).existsSync()) {
+          iconPath = File(assetPng).absolute.path;
+        } else {
+          iconPath = 'assets/app_icon_monotone.png';
+        }
+      }
 
       await trayManager.setIcon(iconPath);
       if (Platform.isWindows) {

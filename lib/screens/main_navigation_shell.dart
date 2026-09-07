@@ -134,7 +134,9 @@ class MainNavigationShellState extends State<MainNavigationShell>
     NavigationTutorial.reportTab(_currentIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        NavigationTutorial.maybeShow(context);
+        final isSidebar =
+            NavigationTutorial.isDesktop || MediaQuery.sizeOf(context).width >= 800;
+        NavigationTutorial.maybeShow(context, isSidebar: isSidebar);
         NotificationsService.checkAndOpenPendingNotification(context);
       }
     });
@@ -211,7 +213,6 @@ class MainNavigationShellState extends State<MainNavigationShell>
     final isDark = theme.brightness == Brightness.dark;
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
     final navItems = MainNavigationShell._allNavItems;
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         systemNavigationBarColor: theme.colorScheme.surface,
@@ -225,7 +226,7 @@ class MainNavigationShellState extends State<MainNavigationShell>
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth >= 800;
+          final isDesktop = NavigationTutorial.isDesktop || constraints.maxWidth >= 800;
 
           Widget bodyContent = Stack(
             children: [

@@ -1277,19 +1277,21 @@ class _SettingsScreenState extends State<SettingsScreen>
                             ),
                             onTap: _openSafeWordDialog,
                           ),
-                          const Divider(),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text(
-                              'How Navigation Works',
-                              style: TextStyle(fontWeight: FontWeight.bold),
+                          if (!NavigationTutorial.isDesktop) ...[
+                            const Divider(),
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text(
+                                'How Navigation Works',
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: const Text(
+                                'Replay the guided tour of the bottom dock.',
+                              ),
+                              trailing: const Icon(Icons.help_outline),
+                              onTap: () => NavigationTutorial.show(context),
                             ),
-                            subtitle: const Text(
-                              'Replay the guided tour of the bottom dock.',
-                            ),
-                            trailing: const Icon(Icons.help_outline),
-                            onTap: () => NavigationTutorial.show(context),
-                          ),
+                          ],
                         ],
                       ),
                     ),

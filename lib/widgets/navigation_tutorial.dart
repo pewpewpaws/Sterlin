@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +11,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Interactive first-run onboarding tutorial highlighting key navigation targets.
 class NavigationTutorial {
   NavigationTutorial._();
+
+  static bool get isDesktop =>
+      !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
   static final GlobalKey navBarKey = GlobalKey();
   static final GlobalKey bellKey = GlobalKey();
@@ -29,10 +34,27 @@ class NavigationTutorial {
     NavigationTutorial.lastTabIndex.value = index;
   }
 
-  static Future<void> maybeShow(BuildContext context) async {
+  static Future<void> maybeShow(
+    BuildContext context, {
+    bool? isSidebar,
+  }) async {
     try {
+      if (isDesktop) {
+        _completeFirstRun();
+        return;
+      }
+
       final prefs = await SharedPreferences.getInstance();
       if (prefs.getBool(_seenKey) ?? false) {
+        _completeFirstRun();
+        return;
+      }
+
+      // If navigation type is sidebar (e.g. desktop/wide layout >= 800), do not show tutorial on initial launch
+      final bool sidebarMode = isSidebar ??
+          (context.mounted && MediaQuery.sizeOf(context).width >= 800);
+      if (sidebarMode) {
+        await prefs.setBool(_seenKey, true);
         _completeFirstRun();
         return;
       }
@@ -40,6 +62,7 @@ class NavigationTutorial {
       await Future.delayed(const Duration(milliseconds: 800));
       await prefs.setBool(_seenKey, true);
       if (!context.mounted) return;
+
       show(context);
     } catch (_) {
       _completeFirstRun();
@@ -47,6 +70,11 @@ class NavigationTutorial {
   }
 
   static void show(BuildContext context) {
+    if (isDesktop) {
+      _completeFirstRun();
+      return;
+    }
+
     final rootNav = Navigator.of(context, rootNavigator: true);
     final overlayState = rootNav.overlay;
     if (overlayState == null) return;
